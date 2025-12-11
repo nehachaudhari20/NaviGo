@@ -1,8 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
 import Sidebar from "@/components/sidebar"
 import Header from "@/components/header"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   AlertCircle,
   Phone,
@@ -20,9 +25,14 @@ import {
   Shield,
   CheckCircle2,
   ChevronRight,
+  Calendar,
+  Send,
+  Search,
 } from "lucide-react"
 
 export default function SupportPage() {
+  const { isAuthenticated } = useAuth()
+  const router = useRouter()
   const [activeSupport, setActiveSupport] = useState("emergency")
 
   const supportSections = [
@@ -33,34 +43,36 @@ export default function SupportPage() {
   ]
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-black text-slate-100">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-auto">
-          <div className="p-6 space-y-6">
-            {/* Page Title */}
-            <div>
-              <h1 className="text-4xl font-bold text-foreground mb-2">Support Center</h1>
-              <p className="text-muted-foreground">24/7 assistance, roadside help, and service management</p>
+          <div className="max-w-[1400px] mx-auto p-5 space-y-6">
+            {/* Page Header */}
+            <div className="mb-6">
+              <h1 className="text-4xl font-bold text-cyan-400 mb-2">Support Center</h1>
+              <p className="text-slate-400">24/7 assistance, roadside help, and service management</p>
             </div>
 
+            {/* Support Section Tabs */}
             <div className="flex gap-3 overflow-x-auto pb-2">
               {supportSections.map((section) => {
                 const Icon = section.icon
                 return (
-                  <button
+                  <Button
                     key={section.id}
                     onClick={() => setActiveSupport(section.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition ${
+                    variant="outline"
+                    className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
                       activeSupport === section.id
-                        ? "glass-card bg-primary/30 border-primary text-primary shadow-lg"
-                        : "glass-card border-border hover:border-primary/50 text-foreground"
+                        ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400 shadow-lg shadow-cyan-500/20"
+                        : "bg-slate-800/30 backdrop-blur-sm border-slate-700/30 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-400"
                     }`}
                   >
                     <Icon size={18} />
                     {section.label}
-                  </button>
+                  </Button>
                 )
               })}
             </div>
@@ -69,85 +81,108 @@ export default function SupportPage() {
             {activeSupport === "emergency" && (
               <div className="space-y-6">
                 {/* Main Emergency Card */}
-                <div className="glass-card p-6 border-destructive/30 bg-gradient-to-br from-destructive/15 to-transparent overflow-hidden relative">
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-destructive/10 rounded-full blur-3xl -z-0" />
-                  <div className="flex items-start gap-4 relative z-10">
-                    <div className="bg-destructive/20 p-3 rounded-lg">
-                      <AlertCircle size={28} className="text-destructive" />
+                <Card className="bg-gradient-to-br from-red-500/20 via-slate-800/40 to-slate-900/40 backdrop-blur-xl border-red-500/30 shadow-2xl shadow-red-500/20 overflow-hidden relative">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl -z-0" />
+                  <CardContent className="p-6 relative z-10">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-red-500/20 backdrop-blur-sm p-4 rounded-xl border border-red-500/30 shadow-lg">
+                        <AlertCircle size={32} className="text-red-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-3xl font-bold text-slate-100 mb-2">Immediate Help</h2>
+                        <Badge className="bg-red-500/20 text-red-400 border-red-500/30 mb-3">24/7 Available</Badge>
+                        <p className="text-slate-300">Get instant support for urgent situations</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h2 className="text-2xl font-bold text-foreground mb-1">Immediate Help</h2>
-                      <p className="text-muted-foreground mb-1">(24/7 Available)</p>
-                      <p className="text-sm text-muted-foreground">Get instant support for urgent situations</p>
-                    </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 {/* Call & Chat Support */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Call Support Card */}
-                  <div className="glass-card p-6 border-border hover:border-primary/50 transition">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="bg-primary/20 p-2.5 rounded-lg">
-                        <Phone size={20} className="text-primary" />
+                  <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20 hover:border-cyan-500/40 transition-all">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="bg-cyan-500/20 backdrop-blur-sm p-3 rounded-lg border border-cyan-500/30">
+                          <Phone size={24} className="text-cyan-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-100 text-lg">Call Support</h3>
+                          <p className="text-xs text-slate-400">2 mins average wait</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-foreground">Call Support</h3>
-                        <p className="text-xs text-muted-foreground">2 mins average wait</p>
+                      <p className="text-3xl font-bold text-cyan-400 mb-6">+91-9876543210</p>
+                      <div className="flex gap-3">
+                        <Button className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold">
+                          <Phone size={16} className="mr-2" />
+                          Call Now
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 font-semibold"
+                        >
+                          <Calendar size={16} className="mr-2" />
+                          Schedule
+                        </Button>
                       </div>
-                    </div>
-                    <p className="text-2xl font-bold text-primary mb-4">+91-9876543210</p>
-                    <div className="flex gap-2">
-                      <button className="flex-1 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg hover:bg-primary/90 transition text-sm font-semibold">
-                        Call Now
-                      </button>
-                      <button className="flex-1 border border-primary/50 text-primary px-4 py-2.5 rounded-lg hover:bg-primary/10 transition text-sm font-semibold">
-                        Schedule
-                      </button>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
 
                   {/* Chat Support Card */}
-                  <div className="glass-card p-6 border-border hover:border-accent/50 transition">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="bg-accent/20 p-2.5 rounded-lg">
-                        <MessageSquare size={20} className="text-accent" />
+                  <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20 hover:border-purple-500/40 transition-all">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="bg-purple-500/20 backdrop-blur-sm p-3 rounded-lg border border-purple-500/30">
+                          <MessageSquare size={24} className="text-purple-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-100 text-lg">Live Chat</h3>
+                          <Badge className="bg-green-500/20 text-green-400 border-green-500/30 mt-1 text-xs">
+                            Agent online now
+                          </Badge>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-foreground">Live Chat</h3>
-                        <p className="text-xs text-muted-foreground">Agent online now</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">Response in seconds • No wait time</p>
-                    <button className="w-full bg-accent text-accent-foreground px-4 py-2.5 rounded-lg hover:bg-accent/90 transition text-sm font-semibold">
-                      Start Chat
-                    </button>
-                  </div>
+                      <p className="text-sm text-slate-400 mb-6">Response in seconds • No wait time</p>
+                      <Button className="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold">
+                        <MessageSquare size={16} className="mr-2" />
+                        Start Chat
+                      </Button>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {/* Roadside Emergency */}
-                <div className="glass-card p-6 border-border">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="bg-destructive/20 p-2.5 rounded-lg">
-                      <MapPin size={20} className="text-destructive" />
+                <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="bg-red-500/20 backdrop-blur-sm p-3 rounded-lg border border-red-500/30">
+                        <MapPin size={24} className="text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-100 text-lg">Roadside Emergency</h3>
+                        <p className="text-sm text-slate-400 mt-1">Your location: Pune, Maharashtra</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-foreground">Roadside Emergency</h3>
-                      <p className="text-sm text-muted-foreground mt-1">Your location: Pune, Maharashtra</p>
+                    <Card className="bg-cyan-500/10 backdrop-blur-sm border-cyan-500/30 mb-4">
+                      <CardContent className="p-4">
+                        <p className="text-sm font-semibold text-cyan-400">
+                          Nearest service center: 5 km away (10 mins)
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <div className="flex gap-3">
+                      <Button className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-semibold">
+                        Get Help on Road
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 font-semibold"
+                      >
+                        View Details
+                      </Button>
                     </div>
-                  </div>
-                  <div className="glass-card-sm p-4 bg-primary/10 border-primary/30 mb-4">
-                    <p className="text-sm font-semibold text-primary">Nearest service center: 5 km away (10 mins)</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="flex-1 bg-destructive/20 text-destructive px-4 py-2.5 rounded-lg hover:bg-destructive/30 transition text-sm font-semibold">
-                      Get Help on Road
-                    </button>
-                    <button className="flex-1 border border-primary/50 text-foreground px-4 py-2.5 rounded-lg hover:bg-primary/10 transition text-sm font-semibold">
-                      View Details
-                    </button>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
 
@@ -155,140 +190,167 @@ export default function SupportPage() {
             {activeSupport === "onroad" && (
               <div className="space-y-6">
                 {/* Header */}
-                <div className="glass-card p-6 border-border">
-                  <h2 className="text-2xl font-bold text-foreground mb-2">Roadside Assistance</h2>
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Clock size={16} />
-                    <span>Pune-Mumbai highway, KM 45 • Updated 2 minutes ago</span>
-                  </div>
-                </div>
+                <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
+                  <CardContent className="p-6">
+                    <h2 className="text-2xl font-bold text-cyan-400 mb-2">Roadside Assistance</h2>
+                    <div className="flex items-center gap-2 text-slate-400 text-sm">
+                      <Clock size={16} />
+                      <span>Pune-Mumbai highway, KM 45 • Updated 2 minutes ago</span>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Quick Actions */}
-                <div className="glass-card p-6 border-border">
-                  <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
-                    <Zap size={18} className="text-primary" />
-                    What to do:
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {[
-                      { label: "Report breakdown/accident", icon: AlertCircle, color: "destructive" },
-                      { label: "Request tow truck", icon: Car, color: "primary" },
-                      { label: "Get emergency fuel", icon: Fuel, color: "primary" },
-                      { label: "Call traffic police", icon: Phone, color: "primary" },
-                      { label: "Emergency medical help", icon: Hospital, color: "destructive" },
-                    ].map((item, i) => {
-                      const Icon = item.icon
-                      return (
-                        <button
-                          key={i}
-                          className="glass-card p-4 border-border hover:border-primary/50 transition text-left flex items-center gap-3 group"
-                        >
-                          <div className={`bg-${item.color}/20 p-2.5 rounded-lg`}>
-                            <Icon size={18} className={`text-${item.color}`} />
-                          </div>
-                          <span className="text-sm font-medium text-foreground group-hover:text-primary transition">
-                            {item.label}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+                <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
+                  <CardHeader>
+                    <CardTitle className="text-xl text-cyan-400 flex items-center gap-2">
+                      <Zap size={20} className="text-cyan-400" />
+                      Quick Actions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { label: "Report breakdown/accident", icon: AlertCircle, color: "red" },
+                        { label: "Request tow truck", icon: Car, color: "cyan" },
+                        { label: "Get emergency fuel", icon: Fuel, color: "cyan" },
+                        { label: "Call traffic police", icon: Phone, color: "cyan" },
+                        { label: "Emergency medical help", icon: Hospital, color: "red" },
+                      ].map((item, i) => {
+                        const Icon = item.icon
+                        const colorClasses =
+                          item.color === "red"
+                            ? "bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30"
+                            : "bg-cyan-500/20 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30"
+                        const iconBgClass = item.color === "red" ? "bg-red-500/20" : "bg-cyan-500/20"
+                        const iconTextClass = item.color === "red" ? "text-red-400" : "text-cyan-400"
+                        return (
+                          <Button
+                            key={i}
+                            variant="outline"
+                            className={`${colorClasses} backdrop-blur-sm p-4 h-auto justify-start text-left group transition-all`}
+                          >
+                            <div className={`${iconBgClass} p-2.5 rounded-lg mr-3`}>
+                              <Icon size={18} className={iconTextClass} />
+                            </div>
+                            <span className="text-sm font-medium">{item.label}</span>
+                          </Button>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Nearest Resources */}
-                <div className="glass-card p-6 border-border">
-                  <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
-                    <MapPin size={18} className="text-primary" />
-                    Nearest Resources
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      {
-                        name: "Service Center",
-                        address: "123 NH48, Pune",
-                        distance: "8 km",
-                        time: "15 mins",
-                        phone: "020-1234-5678",
-                        icon: Wrench,
-                        color: "primary",
-                      },
-                      {
-                        name: "Petrol Pump + EV Charging",
-                        address: "Shell petrol pump",
-                        distance: "2 km",
-                        time: "5 mins",
-                        phone: "150 kW DC available",
-                        icon: Fuel,
-                        color: "primary",
-                      },
-                      {
-                        name: "Hospital",
-                        address: "Apollo Hospital, Pune",
-                        distance: "3 km",
-                        time: "8 mins",
-                        phone: "Emergency",
-                        icon: Hospital,
-                        color: "destructive",
-                      },
-                      {
-                        name: "Police Station",
-                        address: "Pune Central Station",
-                        distance: "4 km",
-                        time: "10 mins",
-                        phone: "100",
-                        icon: Shield,
-                        color: "primary",
-                      },
-                    ].map((resource, i) => {
-                      const Icon = resource.icon
-                      return (
-                        <div
-                          key={i}
-                          className="glass-card p-4 border-border hover:border-primary/50 transition hover:bg-primary/5"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex gap-3 flex-1">
-                              <div className={`bg-${resource.color}/20 p-2.5 rounded-lg flex-shrink-0`}>
-                                <Icon size={18} className={`text-${resource.color}`} />
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-foreground text-sm">{resource.name}</h4>
-                                <p className="text-xs text-muted-foreground mt-1">{resource.address}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{resource.phone}</p>
-                                <div className="flex items-center gap-3 mt-2">
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <MapPin size={12} />
-                                    {resource.distance}
+                <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
+                  <CardHeader>
+                    <CardTitle className="text-xl text-cyan-400 flex items-center gap-2">
+                      <MapPin size={20} className="text-cyan-400" />
+                      Nearest Resources
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {[
+                        {
+                          name: "Service Center",
+                          address: "123 NH48, Pune",
+                          distance: "8 km",
+                          time: "15 mins",
+                          phone: "020-1234-5678",
+                          icon: Wrench,
+                          color: "cyan",
+                        },
+                        {
+                          name: "Petrol Pump + EV Charging",
+                          address: "Shell petrol pump",
+                          distance: "2 km",
+                          time: "5 mins",
+                          phone: "150 kW DC available",
+                          icon: Fuel,
+                          color: "cyan",
+                        },
+                        {
+                          name: "Hospital",
+                          address: "Apollo Hospital, Pune",
+                          distance: "3 km",
+                          time: "8 mins",
+                          phone: "Emergency",
+                          icon: Hospital,
+                          color: "red",
+                        },
+                        {
+                          name: "Police Station",
+                          address: "Pune Central Station",
+                          distance: "4 km",
+                          time: "10 mins",
+                          phone: "100",
+                          icon: Shield,
+                          color: "cyan",
+                        },
+                      ].map((resource, i) => {
+                        const Icon = resource.icon
+                        const bgColor = resource.color === "red" ? "bg-red-500/20" : "bg-cyan-500/20"
+                        const borderColor = resource.color === "red" ? "border-red-500/30" : "border-cyan-500/30"
+                        const textColor = resource.color === "red" ? "text-red-400" : "text-cyan-400"
+                        return (
+                          <Card
+                            key={i}
+                            className={`bg-slate-900/30 backdrop-blur-sm border-slate-700/30 hover:border-${resource.color}-500/40 transition-all shadow-md`}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex gap-3 flex-1">
+                                  <div className={`${bgColor} backdrop-blur-sm p-2.5 rounded-lg flex-shrink-0 border ${borderColor}`}>
+                                    <Icon size={18} className={textColor} />
                                   </div>
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <Clock size={12} />
-                                    {resource.time}
+                                  <div className="flex-1">
+                                    <h4 className="font-semibold text-slate-100 text-sm mb-1">{resource.name}</h4>
+                                    <p className="text-xs text-slate-400 mb-1">{resource.address}</p>
+                                    <p className="text-xs text-slate-400 mb-2">{resource.phone}</p>
+                                    <div className="flex items-center gap-4">
+                                      <div className="flex items-center gap-1 text-xs text-slate-400">
+                                        <MapPin size={12} />
+                                        {resource.distance}
+                                      </div>
+                                      <div className="flex items-center gap-1 text-xs text-slate-400">
+                                        <Clock size={12} />
+                                        {resource.time}
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
+                                <Button
+                                  variant="outline"
+                                  className={`${bgColor} ${textColor} ${borderColor} px-3 py-1.5 text-xs font-semibold ${
+                                    resource.color === "red" ? "hover:bg-red-500/30" : "hover:bg-cyan-500/30"
+                                  } transition flex-shrink-0`}
+                                >
+                                  Directions
+                                </Button>
                               </div>
-                            </div>
-                            <button className="bg-primary/20 text-primary px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/30 transition flex-shrink-0">
-                              Directions
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Auto-notification info */}
-                <div className="glass-card p-4 border-border bg-primary/10 border-primary/30">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 size={18} className="text-primary flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Auto-notification enabled</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        If your vehicle stops, our support team will be notified automatically
-                      </p>
+                <Card className="bg-cyan-500/10 backdrop-blur-sm border-cyan-500/30 shadow-md">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 size={20} className="text-cyan-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-100">Auto-notification enabled</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          If your vehicle stops, our support team will be notified automatically
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
 
@@ -296,188 +358,210 @@ export default function SupportPage() {
             {activeSupport === "pickup" && (
               <div className="space-y-6">
                 {/* Service Details Header */}
-                <div className="glass-card p-6 border-border bg-accent/10 border-accent/30">
-                  <h2 className="text-2xl font-bold text-foreground mb-4">Car Pickup & Drop Service</h2>
+                <Card className="bg-gradient-to-br from-cyan-500/15 via-slate-800/40 to-slate-900/40 backdrop-blur-xl border-cyan-500/30 shadow-2xl shadow-cyan-500/20">
+                  <CardContent className="p-6">
+                    <h2 className="text-2xl font-bold text-cyan-400 mb-6">Car Pickup & Drop Service</h2>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Hours</p>
-                      <p className="text-lg font-bold text-foreground">6 AM - 8 PM</p>
-                      <p className="text-xs text-muted-foreground mt-1">Weekdays</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Hours</p>
+                        <p className="text-2xl font-bold text-slate-100">6 AM - 8 PM</p>
+                        <p className="text-xs text-slate-400 mt-1">Weekdays</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Cost</p>
+                        <p className="text-2xl font-bold text-cyan-400">₹0</p>
+                        <p className="text-xs text-slate-400 mt-1">Complimentary</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Coverage</p>
+                        <p className="text-2xl font-bold text-slate-100">15 km</p>
+                        <p className="text-xs text-slate-400 mt-1">From Pune center</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Drop-off</p>
+                        <p className="text-2xl font-bold text-green-400">Free</p>
+                        <p className="text-xs text-slate-400 mt-1">Return service</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Cost</p>
-                      <p className="text-lg font-bold text-primary">₹0</p>
-                      <p className="text-xs text-muted-foreground mt-1">Complimentary</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                        Coverage
-                      </p>
-                      <p className="text-lg font-bold text-foreground">15 km</p>
-                      <p className="text-xs text-muted-foreground mt-1">From Pune center</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                        Drop-off
-                      </p>
-                      <p className="text-lg font-bold text-foreground">Free</p>
-                      <p className="text-xs text-muted-foreground mt-1">Return service</p>
-                    </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 {/* Booking Form */}
-                <div className="glass-card p-6 border-border space-y-5">
-                  <h3 className="font-bold text-lg text-foreground">Schedule a Pickup</h3>
-
-                  <div className="space-y-4">
+                <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
+                  <CardHeader>
+                    <CardTitle className="text-xl text-cyan-400">Schedule a Pickup</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
                     <div>
-                      <label className="text-sm font-semibold text-foreground block mb-2">Pickup Date</label>
+                      <label className="text-sm font-semibold text-slate-300 block mb-2">Pickup Date</label>
                       <input
                         type="date"
-                        className="w-full glass-card px-4 py-2.5 rounded-lg border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                        className="w-full bg-slate-900/30 backdrop-blur-sm px-4 py-2.5 rounded-lg border border-slate-700/30 text-slate-100 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-foreground block mb-2">
+                      <label className="text-sm font-semibold text-slate-300 block mb-2">
                         Pickup Time (2-hour window)
                       </label>
                       <input
                         type="time"
-                        className="w-full glass-card px-4 py-2.5 rounded-lg border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                        className="w-full bg-slate-900/30 backdrop-blur-sm px-4 py-2.5 rounded-lg border border-slate-700/30 text-slate-100 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-foreground block mb-3">Pickup Location</label>
-                      <div className="flex gap-2">
-                        <button className="flex-1 glass-card px-4 py-2.5 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition">
+                      <label className="text-sm font-semibold text-slate-300 block mb-3">Pickup Location</label>
+                      <div className="flex gap-3">
+                        <Button
+                          variant="outline"
+                          className="flex-1 bg-cyan-500/10 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20"
+                        >
+                          <MapPin size={16} className="mr-2" />
                           Current Location
-                        </button>
-                        <button className="flex-1 glass-card px-4 py-2.5 rounded-lg border border-border text-foreground text-sm font-medium hover:border-primary/50 transition">
+                        </Button>
+                        <Button variant="outline" className="flex-1 border-slate-700/30 hover:border-cyan-500/40">
                           Enter Address
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-foreground block mb-3">Service Type</label>
+                      <label className="text-sm font-semibold text-slate-300 block mb-3">Service Type</label>
                       <div className="grid grid-cols-2 gap-3">
-                        {[
-                          "Oil change",
-                          "Brake pads",
-                          "Battery check",
-                          "Tyre service",
-                          "Full diagnostics",
-                          "Other...",
-                        ].map((service) => (
-                          <label key={service} className="flex items-center gap-3 cursor-pointer">
-                            <input type="radio" name="service" className="w-4 h-4 accent-primary" />
-                            <span className="text-sm text-foreground">{service}</span>
-                          </label>
-                        ))}
+                        {["Oil change", "Brake pads", "Battery check", "Tyre service", "Full diagnostics", "Other..."].map(
+                          (service) => (
+                            <label key={service} className="flex items-center gap-3 cursor-pointer group">
+                              <input
+                                type="radio"
+                                name="service"
+                                className="w-4 h-4 accent-cyan-500 cursor-pointer"
+                              />
+                              <span className="text-sm text-slate-300 group-hover:text-cyan-400 transition">
+                                {service}
+                              </span>
+                            </label>
+                          )
+                        )}
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-foreground block mb-2">Return Location</label>
-                      <div className="flex gap-2">
-                        <button className="flex-1 glass-card px-4 py-2.5 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition">
+                      <label className="text-sm font-semibold text-slate-300 block mb-2">Return Location</label>
+                      <div className="flex gap-3">
+                        <Button
+                          variant="outline"
+                          className="flex-1 bg-cyan-500/10 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20"
+                        >
                           Same as pickup
-                        </button>
-                        <button className="flex-1 glass-card px-4 py-2.5 rounded-lg border border-border text-foreground text-sm font-medium hover:border-primary/50 transition">
+                        </Button>
+                        <Button variant="outline" className="flex-1 border-slate-700/30 hover:border-cyan-500/40">
                           Different address
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-foreground block mb-2">Special Instructions</label>
+                      <label className="text-sm font-semibold text-slate-300 block mb-2">Special Instructions</label>
                       <textarea
                         placeholder="Enter any special notes..."
-                        className="w-full glass-card px-4 py-2.5 rounded-lg border border-border text-foreground text-sm focus:outline-none focus:border-primary resize-none"
+                        className="w-full bg-slate-900/30 backdrop-blur-sm px-4 py-2.5 rounded-lg border border-slate-700/30 text-slate-100 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 resize-none placeholder:text-slate-500"
                         rows={3}
                       />
                     </div>
 
-                    <button className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition font-semibold text-sm">
+                    <Button className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-6">
+                      <Send size={16} className="mr-2" />
                       Schedule Pickup
-                    </button>
-                  </div>
-                </div>
+                    </Button>
+                  </CardContent>
+                </Card>
 
                 {/* Past Pickups */}
-                <div className="glass-card p-6 border-border">
-                  <h3 className="font-bold text-foreground mb-4">Past Pickups</h3>
-                  <div className="space-y-2">
-                    {[
-                      { date: "05 Dec 2025", service: "Oil change", status: "Completed" },
-                      { date: "20 Oct 2025", service: "Battery check", status: "Completed" },
-                    ].map((pickup, i) => (
-                      <div
-                        key={i}
-                        className="glass-card p-4 border-border flex items-center justify-between hover:border-primary/50 transition"
-                      >
-                        <div>
-                          <p className="font-medium text-foreground text-sm">
-                            {pickup.date} • {pickup.service}
-                          </p>
-                        </div>
-                        <span className="text-xs bg-green-500/20 text-green-400 px-3 py-1.5 rounded-lg font-semibold">
-                          {pickup.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
+                  <CardHeader>
+                    <CardTitle className="text-xl text-cyan-400">Past Pickups</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {[
+                        { date: "05 Dec 2025", service: "Oil change", status: "Completed" },
+                        { date: "20 Oct 2025", service: "Battery check", status: "Completed" },
+                      ].map((pickup, i) => (
+                        <Card
+                          key={i}
+                          className="bg-slate-900/30 backdrop-blur-sm border-slate-700/30 hover:border-cyan-500/40 transition-all shadow-md"
+                        >
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-slate-100 text-sm">
+                                {pickup.date} • {pickup.service}
+                              </p>
+                            </div>
+                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                              {pickup.status}
+                            </Badge>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
 
             {/* FAQ SECTION */}
             {activeSupport === "faq" && (
               <div className="space-y-6">
-                <div className="glass-card p-6 border-border">
-                  <h2 className="text-2xl font-bold text-foreground mb-6">FAQ & Help Center</h2>
+                <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
+                  <CardHeader>
+                    <CardTitle className="text-2xl text-cyan-400">FAQ & Help Center</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Search */}
+                    <div className="mb-6 relative">
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                      <input
+                        type="text"
+                        placeholder="Search help topics..."
+                        className="w-full bg-slate-900/30 backdrop-blur-sm pl-12 pr-4 py-3 rounded-lg border border-slate-700/30 text-slate-100 placeholder:text-slate-500 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
+                      />
+                    </div>
 
-                  {/* Search */}
-                  <div className="mb-6 relative">
-                    <input
-                      type="text"
-                      placeholder="Search help topics..."
-                      className="w-full glass-card px-4 py-3 rounded-lg border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:border-primary"
-                    />
-                  </div>
+                    {/* Popular Topics */}
+                    <h3 className="font-semibold text-slate-400 mb-4 text-sm uppercase tracking-wide">
+                      Popular Topics
+                    </h3>
 
-                  {/* Popular Topics */}
-                  <h3 className="font-semibold text-foreground mb-4 text-sm uppercase tracking-wide text-muted-foreground">
-                    Popular Topics
-                  </h3>
-
-                  <div className="space-y-2">
-                    {[
-                      "How to read error codes",
-                      "What does bearing seal degradation mean?",
-                      "Battery SOH explained",
-                      "How to reduce brake wear",
-                      "Tyre rotation schedule",
-                      "Warranty coverage details",
-                      "How to claim refunds",
-                      "Payment issues troubleshooting",
-                    ].map((faq, i) => (
-                      <button
-                        key={i}
-                        className="w-full glass-card p-4 border-border hover:border-primary/50 hover:bg-primary/5 transition text-left flex items-center justify-between group"
-                      >
-                        <span className="font-medium text-foreground text-sm group-hover:text-primary transition">
-                          {faq}
-                        </span>
-                        <ChevronRight size={16} className="text-muted-foreground group-hover:text-primary transition" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    <div className="space-y-2">
+                      {[
+                        "How to read error codes",
+                        "What does bearing seal degradation mean?",
+                        "Battery SOH explained",
+                        "How to reduce brake wear",
+                        "Tyre rotation schedule",
+                        "Warranty coverage details",
+                        "How to claim refunds",
+                        "Payment issues troubleshooting",
+                      ].map((faq, i) => (
+                        <Button
+                          key={i}
+                          variant="outline"
+                          className="w-full bg-slate-900/30 backdrop-blur-sm border-slate-700/30 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition-all text-left justify-between group p-4 h-auto"
+                        >
+                          <span className="font-medium text-slate-300 text-sm group-hover:text-cyan-400 transition">
+                            {faq}
+                          </span>
+                          <ChevronRight
+                            size={16}
+                            className="text-slate-400 group-hover:text-cyan-400 transition flex-shrink-0"
+                          />
+                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>
