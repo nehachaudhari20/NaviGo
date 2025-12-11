@@ -8,6 +8,7 @@ ui-debug.log
 node_modules/
 .pnp
 .pnp.js
+**/node_modules/
 
 # Build outputs
 dist/
