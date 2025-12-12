@@ -2,6 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { AuthProvider } from "@/contexts/auth-context"
+import ChatbotWrapper from "@/components/chatbot-wrapper"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -38,7 +40,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`font-sans antialiased dark`} suppressHydrationWarning>
-        {children}
+        <AuthProvider>
+          {children}
+          <ChatbotWrapper />
+        </AuthProvider>
         <Analytics />
       </body>
     </html>
