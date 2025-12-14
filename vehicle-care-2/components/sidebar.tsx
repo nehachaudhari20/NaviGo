@@ -2,13 +2,21 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, Wrench, CreditCard, LifeBuoy, Settings, User, LogOut, ChevronDown } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function Sidebar() {
   const [supportOpen, setSupportOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+  const { logout } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+    router.push("/login")
+  }
 
   const isActive = (path: string) => pathname === path || (path === "/" && pathname === "/")
 
@@ -168,6 +176,7 @@ export default function Sidebar() {
 
       {/* Logout Button */}
       <button
+        onClick={handleLogout}
         className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
         title="Logout"
       >

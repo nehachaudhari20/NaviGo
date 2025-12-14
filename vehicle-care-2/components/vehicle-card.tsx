@@ -74,22 +74,22 @@ export default function VehicleCard() {
       <CardContent className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Vehicle Image */}
-          <div className="lg:col-span-1">
+        <div className="lg:col-span-1">
             <div className="relative bg-gradient-to-br from-slate-900/40 to-slate-800/30 backdrop-blur-md rounded-xl p-6 border border-slate-700/30 overflow-hidden group hover:border-cyan-500/40 transition-all h-full shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative flex items-center justify-center min-h-[280px]">
-                <img
-                  src={vehicle.image || "/placeholder.svg"}
-                  alt={vehicle.name}
+            <img
+              src={vehicle.image || "/placeholder.svg"}
+              alt={vehicle.name}
                   className="w-full h-auto object-contain rounded-lg shadow-2xl shadow-cyan-500/10 group-hover:scale-105 transition-transform duration-300"
-                />
-              </div>
+            />
+          </div>
               <div className="mt-4 text-center">
                 <div className="inline-flex items-center gap-2 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-700/50">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span className="text-xs text-slate-300 font-medium">All Systems Operational</span>
-                </div>
-              </div>
+        </div>
+            </div>
             </div>
           </div>
 
@@ -163,8 +163,8 @@ export default function VehicleCard() {
                     <div className="mt-2">
                       <Progress value={45} className="h-1.5" />
                     </div>
-                  </div>
-                </div>
+            </div>
+            </div>
               </CardContent>
             </Card>
           </div>
@@ -345,9 +345,9 @@ export default function VehicleCard() {
                           Prevents costly emergency repairs
                         </li>
                       </ul>
-                    </div>
-                  </div>
-            </div>
+        </div>
+      </div>
+    </div>
 
                 {/* Action Buttons - Enhanced */}
                 <div className="flex gap-3 pt-4 border-t border-slate-700/50">
