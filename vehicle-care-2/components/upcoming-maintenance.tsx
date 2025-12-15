@@ -35,8 +35,8 @@ export default function UpcomingMaintenance() {
       </CardHeader>
       <CardContent className="p-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Last Service Date */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Last Service Date */}
           <Card className="bg-gradient-to-br from-slate-900/80 to-slate-800/80 border-slate-700/50 hover:border-cyan-500/30 transition-all">
             <CardContent className="p-5">
               <div className="flex items-start gap-4">
@@ -59,12 +59,12 @@ export default function UpcomingMaintenance() {
                 <div className="p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
                   <Wrench className="text-yellow-400" size={24} />
                 </div>
-                <div className="flex-1">
+            <div className="flex-1">
                   <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Total Services</p>
                   <p className="text-2xl font-bold text-slate-100 mb-1">{maintenanceData.totalServices}</p>
                   <p className="text-xs text-slate-400">All preventive services</p>
-                </div>
-              </div>
+            </div>
+          </div>
             </CardContent>
           </Card>
         </div>
@@ -90,14 +90,14 @@ export default function UpcomingMaintenance() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-slate-400 uppercase tracking-wide">Time Remaining</span>
                 <span className="text-sm font-semibold text-cyan-400">{maintenanceData.upcoming.daysRemaining} days</span>
-              </div>
+          </div>
               <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
                 <div
                   className="h-full bg-gradient-to-r from-cyan-500 to-cyan-600 transition-all duration-500"
                   style={{ width: `${maintenanceData.upcoming.progress}%` }}
                 />
-              </div>
-            </div>
+        </div>
+      </div>
 
             {/* Service Details Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-700/50">
@@ -113,28 +113,28 @@ export default function UpcomingMaintenance() {
                 <div className="flex items-center gap-2 mb-2">
                   <MapPin className="text-blue-400" size={16} />
                   <p className="text-xs text-slate-400 uppercase tracking-wide">Provider</p>
-                </div>
+          </div>
                 <p className="text-sm font-semibold text-slate-100">{maintenanceData.upcoming.provider}</p>
-              </div>
+        </div>
 
               <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
                 <div className="flex items-center gap-2 mb-2">
                   <Calendar className="text-yellow-400" size={16} />
                   <p className="text-xs text-slate-400 uppercase tracking-wide">Due Date</p>
-                </div>
+          </div>
                 <p className="text-sm font-semibold text-slate-100">{maintenanceData.upcoming.dueDate}</p>
-              </div>
+          </div>
 
               <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="text-purple-400" size={16} />
                   <p className="text-xs text-slate-400 uppercase tracking-wide">Priority</p>
-                </div>
+          </div>
                 <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs font-semibold">
                   High
                 </Badge>
-              </div>
-            </div>
+        </div>
+      </div>
 
             {/* Action Buttons */}
             <div className="flex gap-3 mt-6">
@@ -144,7 +144,7 @@ export default function UpcomingMaintenance() {
               <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700/50">
                 View Details
               </Button>
-            </div>
+    </div>
           </CardContent>
         </Card>
       </CardContent>

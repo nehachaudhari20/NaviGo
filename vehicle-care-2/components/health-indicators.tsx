@@ -85,48 +85,48 @@ export default function HealthIndicators() {
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     <div className="relative w-16 h-16 bg-slate-800/50 rounded-lg overflow-hidden border border-slate-700/50 flex-shrink-0">
-                      <Image
+            <Image
                         src={component.image}
                         alt={component.name}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform"
-                      />
-                    </div>
+            />
+          </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Icon size={18} className="text-cyan-400" />
                           <h3 className="text-sm font-semibold text-slate-200 truncate">{component.name}</h3>
-                        </div>
+            </div>
                         <Badge
                           className={`${status.bg} ${status.color} ${status.border} text-xs border`}
                         >
                           {component.riskLevel} Risk
                         </Badge>
-                      </div>
-                      <div className="space-y-2">
+          </div>
+          <div className="space-y-2">
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs text-slate-400">Health Score</span>
                             <span className={`text-xs font-semibold ${status.color}`}>
                               {component.healthScore}%
                             </span>
-                          </div>
+            </div>
                           <Progress value={component.healthScore} className="h-2" />
-                        </div>
+            </div>
                         <div className="flex items-center gap-4 text-xs">
                           <div className="flex items-center gap-1 text-slate-400">
                             <Clock size={12} />
                             <span>Last: {component.lastAnomaly}</span>
-                          </div>
+            </div>
                           <div className="flex items-center gap-1 text-slate-400">
                             <TrendingUp size={12} />
                             <span>Next: {component.nextReview}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
                 </CardContent>
               </Card>
             )

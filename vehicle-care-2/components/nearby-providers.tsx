@@ -54,13 +54,13 @@ export default function NearbyProviders() {
             See all
             <ChevronRight size={16} className="ml-1" />
           </Button>
-        </div>
+      </div>
       </CardHeader>
       <CardContent className="p-6">
         <div className="space-y-4">
-          {PROVIDERS.map((provider, idx) => (
+        {PROVIDERS.map((provider, idx) => (
             <Card
-              key={idx}
+            key={idx}
               className="bg-slate-900/30 backdrop-blur-sm border-slate-700/30 hover:border-cyan-500/40 transition-all group cursor-pointer overflow-hidden shadow-md"
             >
               <CardContent className="p-5">
@@ -72,7 +72,7 @@ export default function NearbyProviders() {
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -84,7 +84,7 @@ export default function NearbyProviders() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
-                          <MapPin size={12} />
+                <MapPin size={12} />
                           <span>{provider.address}</span>
                           <span className="text-slate-600">•</span>
                           <span>{provider.distance}</span>
@@ -94,14 +94,14 @@ export default function NearbyProviders() {
 
                     {/* Badges and Info */}
                     <div className="flex items-center gap-2 flex-wrap mb-3">
-                      {provider.badges.map((badge, bidx) => (
+                {provider.badges.map((badge, bidx) => (
                         <Badge
-                          key={bidx}
+                    key={bidx}
                           className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-xs font-semibold px-2 py-0.5"
-                        >
-                          {badge}
+                  >
+                    {badge}
                         </Badge>
-                      ))}
+                ))}
                       <div className="flex items-center gap-1 text-xs text-slate-400">
                         <Star size={12} className="text-yellow-400 fill-yellow-400" />
                         <span className="font-semibold text-slate-300">{provider.rating}</span>
@@ -138,13 +138,13 @@ export default function NearbyProviders() {
             <div className="text-center">
               <div className="text-2xl font-bold text-green-400 mb-1">12</div>
               <div className="text-xs text-slate-400 uppercase tracking-wide">Available Slots</div>
-            </div>
+              </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-yellow-400 mb-1">4.7</div>
               <div className="text-xs text-slate-400 uppercase tracking-wide">Avg Rating</div>
             </div>
           </div>
-        </div>
+      </div>
       </CardContent>
     </Card>
   )

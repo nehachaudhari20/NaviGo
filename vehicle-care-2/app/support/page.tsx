@@ -87,8 +87,8 @@ export default function SupportPage() {
                     <div className="flex items-start gap-4">
                       <div className="bg-red-500/20 backdrop-blur-sm p-4 rounded-xl border border-red-500/30 shadow-lg">
                         <AlertCircle size={32} className="text-red-400" />
-                      </div>
-                      <div className="flex-1">
+                    </div>
+                    <div className="flex-1">
                         <h2 className="text-3xl font-bold text-slate-100 mb-2">Immediate Help</h2>
                         <Badge className="bg-red-500/20 text-red-400 border-red-500/30 mb-3">24/7 Available</Badge>
                         <p className="text-slate-300">Get instant support for urgent situations</p>
@@ -102,11 +102,11 @@ export default function SupportPage() {
                   {/* Call Support Card */}
                   <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20 hover:border-cyan-500/40 transition-all">
                     <CardContent className="p-6">
-                      <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-4">
                         <div className="bg-cyan-500/20 backdrop-blur-sm p-3 rounded-lg border border-cyan-500/30">
                           <Phone size={24} className="text-cyan-400" />
-                        </div>
-                        <div>
+                      </div>
+                      <div>
                           <h3 className="font-bold text-slate-100 text-lg">Call Support</h3>
                           <p className="text-xs text-slate-400">2 mins average wait</p>
                         </div>
@@ -115,27 +115,27 @@ export default function SupportPage() {
                       <div className="flex gap-3">
                         <Button className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold">
                           <Phone size={16} className="mr-2" />
-                          Call Now
+                        Call Now
                         </Button>
                         <Button
                           variant="outline"
                           className="flex-1 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 font-semibold"
                         >
                           <Calendar size={16} className="mr-2" />
-                          Schedule
+                        Schedule
                         </Button>
-                      </div>
+                    </div>
                     </CardContent>
                   </Card>
 
                   {/* Chat Support Card */}
                   <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20 hover:border-purple-500/40 transition-all">
                     <CardContent className="p-6">
-                      <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-4">
                         <div className="bg-purple-500/20 backdrop-blur-sm p-3 rounded-lg border border-purple-500/30">
                           <MessageSquare size={24} className="text-purple-400" />
-                        </div>
-                        <div>
+                      </div>
+                      <div>
                           <h3 className="font-bold text-slate-100 text-lg">Live Chat</h3>
                           <Badge className="bg-green-500/20 text-green-400 border-green-500/30 mt-1 text-xs">
                             Agent online now
@@ -145,7 +145,7 @@ export default function SupportPage() {
                       <p className="text-sm text-slate-400 mb-6">Response in seconds • No wait time</p>
                       <Button className="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold">
                         <MessageSquare size={16} className="mr-2" />
-                        Start Chat
+                      Start Chat
                       </Button>
                     </CardContent>
                   </Card>
@@ -154,11 +154,11 @@ export default function SupportPage() {
                 {/* Roadside Emergency */}
                 <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
                   <CardContent className="p-6">
-                    <div className="flex items-start gap-3 mb-4">
+                  <div className="flex items-start gap-3 mb-4">
                       <div className="bg-red-500/20 backdrop-blur-sm p-3 rounded-lg border border-red-500/30">
                         <MapPin size={24} className="text-red-400" />
-                      </div>
-                      <div>
+                    </div>
+                    <div>
                         <h3 className="font-bold text-slate-100 text-lg">Roadside Emergency</h3>
                         <p className="text-sm text-slate-400 mt-1">Your location: Pune, Maharashtra</p>
                       </div>
@@ -172,15 +172,15 @@ export default function SupportPage() {
                     </Card>
                     <div className="flex gap-3">
                       <Button className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-semibold">
-                        Get Help on Road
+                      Get Help on Road
                       </Button>
                       <Button
                         variant="outline"
                         className="flex-1 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 font-semibold"
                       >
-                        View Details
+                      View Details
                       </Button>
-                    </div>
+                  </div>
                   </CardContent>
                 </Card>
               </div>
@@ -194,9 +194,9 @@ export default function SupportPage() {
                   <CardContent className="p-6">
                     <h2 className="text-2xl font-bold text-cyan-400 mb-2">Roadside Assistance</h2>
                     <div className="flex items-center gap-2 text-slate-400 text-sm">
-                      <Clock size={16} />
-                      <span>Pune-Mumbai highway, KM 45 • Updated 2 minutes ago</span>
-                    </div>
+                    <Clock size={16} />
+                    <span>Pune-Mumbai highway, KM 45 • Updated 2 minutes ago</span>
+                  </div>
                   </CardContent>
                 </Card>
 
@@ -210,34 +210,34 @@ export default function SupportPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[
+                    {[
                         { label: "Report breakdown/accident", icon: AlertCircle, color: "red" },
                         { label: "Request tow truck", icon: Car, color: "cyan" },
                         { label: "Get emergency fuel", icon: Fuel, color: "cyan" },
                         { label: "Call traffic police", icon: Phone, color: "cyan" },
                         { label: "Emergency medical help", icon: Hospital, color: "red" },
-                      ].map((item, i) => {
-                        const Icon = item.icon
+                    ].map((item, i) => {
+                      const Icon = item.icon
                         const colorClasses =
                           item.color === "red"
                             ? "bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30"
                             : "bg-cyan-500/20 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30"
                         const iconBgClass = item.color === "red" ? "bg-red-500/20" : "bg-cyan-500/20"
                         const iconTextClass = item.color === "red" ? "text-red-400" : "text-cyan-400"
-                        return (
+                      return (
                           <Button
-                            key={i}
+                          key={i}
                             variant="outline"
                             className={`${colorClasses} backdrop-blur-sm p-4 h-auto justify-start text-left group transition-all`}
-                          >
+                        >
                             <div className={`${iconBgClass} p-2.5 rounded-lg mr-3`}>
                               <Icon size={18} className={iconTextClass} />
-                            </div>
+                          </div>
                             <span className="text-sm font-medium">{item.label}</span>
                           </Button>
-                        )
-                      })}
-                    </div>
+                      )
+                    })}
+                  </div>
                   </CardContent>
                 </Card>
 
@@ -246,109 +246,109 @@ export default function SupportPage() {
                   <CardHeader>
                     <CardTitle className="text-xl text-cyan-400 flex items-center gap-2">
                       <MapPin size={20} className="text-cyan-400" />
-                      Nearest Resources
+                    Nearest Resources
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {[
-                        {
-                          name: "Service Center",
-                          address: "123 NH48, Pune",
-                          distance: "8 km",
-                          time: "15 mins",
-                          phone: "020-1234-5678",
-                          icon: Wrench,
+                    {[
+                      {
+                        name: "Service Center",
+                        address: "123 NH48, Pune",
+                        distance: "8 km",
+                        time: "15 mins",
+                        phone: "020-1234-5678",
+                        icon: Wrench,
                           color: "cyan",
-                        },
-                        {
-                          name: "Petrol Pump + EV Charging",
-                          address: "Shell petrol pump",
-                          distance: "2 km",
-                          time: "5 mins",
-                          phone: "150 kW DC available",
-                          icon: Fuel,
+                      },
+                      {
+                        name: "Petrol Pump + EV Charging",
+                        address: "Shell petrol pump",
+                        distance: "2 km",
+                        time: "5 mins",
+                        phone: "150 kW DC available",
+                        icon: Fuel,
                           color: "cyan",
-                        },
-                        {
-                          name: "Hospital",
-                          address: "Apollo Hospital, Pune",
-                          distance: "3 km",
-                          time: "8 mins",
-                          phone: "Emergency",
-                          icon: Hospital,
+                      },
+                      {
+                        name: "Hospital",
+                        address: "Apollo Hospital, Pune",
+                        distance: "3 km",
+                        time: "8 mins",
+                        phone: "Emergency",
+                        icon: Hospital,
                           color: "red",
-                        },
-                        {
-                          name: "Police Station",
-                          address: "Pune Central Station",
-                          distance: "4 km",
-                          time: "10 mins",
-                          phone: "100",
-                          icon: Shield,
+                      },
+                      {
+                        name: "Police Station",
+                        address: "Pune Central Station",
+                        distance: "4 km",
+                        time: "10 mins",
+                        phone: "100",
+                        icon: Shield,
                           color: "cyan",
-                        },
-                      ].map((resource, i) => {
-                        const Icon = resource.icon
+                      },
+                    ].map((resource, i) => {
+                      const Icon = resource.icon
                         const bgColor = resource.color === "red" ? "bg-red-500/20" : "bg-cyan-500/20"
                         const borderColor = resource.color === "red" ? "border-red-500/30" : "border-cyan-500/30"
                         const textColor = resource.color === "red" ? "text-red-400" : "text-cyan-400"
-                        return (
+                      return (
                           <Card
-                            key={i}
+                          key={i}
                             className={`bg-slate-900/30 backdrop-blur-sm border-slate-700/30 hover:border-${resource.color}-500/40 transition-all shadow-md`}
-                          >
+                        >
                             <CardContent className="p-4">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex gap-3 flex-1">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex gap-3 flex-1">
                                   <div className={`${bgColor} backdrop-blur-sm p-2.5 rounded-lg flex-shrink-0 border ${borderColor}`}>
                                     <Icon size={18} className={textColor} />
-                                  </div>
-                                  <div className="flex-1">
+                              </div>
+                              <div className="flex-1">
                                     <h4 className="font-semibold text-slate-100 text-sm mb-1">{resource.name}</h4>
                                     <p className="text-xs text-slate-400 mb-1">{resource.address}</p>
                                     <p className="text-xs text-slate-400 mb-2">{resource.phone}</p>
                                     <div className="flex items-center gap-4">
                                       <div className="flex items-center gap-1 text-xs text-slate-400">
-                                        <MapPin size={12} />
-                                        {resource.distance}
-                                      </div>
+                                    <MapPin size={12} />
+                                    {resource.distance}
+                                  </div>
                                       <div className="flex items-center gap-1 text-xs text-slate-400">
-                                        <Clock size={12} />
-                                        {resource.time}
-                                      </div>
-                                    </div>
+                                    <Clock size={12} />
+                                    {resource.time}
                                   </div>
                                 </div>
+                              </div>
+                            </div>
                                 <Button
                                   variant="outline"
                                   className={`${bgColor} ${textColor} ${borderColor} px-3 py-1.5 text-xs font-semibold ${
                                     resource.color === "red" ? "hover:bg-red-500/30" : "hover:bg-cyan-500/30"
                                   } transition flex-shrink-0`}
                                 >
-                                  Directions
+                              Directions
                                 </Button>
-                              </div>
+                          </div>
                             </CardContent>
                           </Card>
-                        )
-                      })}
-                    </div>
+                      )
+                    })}
+                  </div>
                   </CardContent>
                 </Card>
 
                 {/* Auto-notification info */}
                 <Card className="bg-cyan-500/10 backdrop-blur-sm border-cyan-500/30 shadow-md">
                   <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3">
                       <CheckCircle2 size={20} className="text-cyan-400 flex-shrink-0 mt-0.5" />
-                      <div>
+                    <div>
                         <p className="text-sm font-semibold text-slate-100">Auto-notification enabled</p>
                         <p className="text-xs text-slate-400 mt-1">
-                          If your vehicle stops, our support team will be notified automatically
-                        </p>
-                      </div>
+                        If your vehicle stops, our support team will be notified automatically
+                      </p>
                     </div>
+                  </div>
                   </CardContent>
                 </Card>
               </div>
@@ -363,22 +363,22 @@ export default function SupportPage() {
                     <h2 className="text-2xl font-bold text-cyan-400 mb-6">Car Pickup & Drop Service</h2>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                      <div>
+                    <div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Hours</p>
                         <p className="text-2xl font-bold text-slate-100">6 AM - 8 PM</p>
                         <p className="text-xs text-slate-400 mt-1">Weekdays</p>
-                      </div>
-                      <div>
+                    </div>
+                    <div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Cost</p>
                         <p className="text-2xl font-bold text-cyan-400">₹0</p>
                         <p className="text-xs text-slate-400 mt-1">Complimentary</p>
-                      </div>
-                      <div>
+                    </div>
+                    <div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Coverage</p>
                         <p className="text-2xl font-bold text-slate-100">15 km</p>
                         <p className="text-xs text-slate-400 mt-1">From Pune center</p>
-                      </div>
-                      <div>
+                    </div>
+                    <div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Drop-off</p>
                         <p className="text-2xl font-bold text-green-400">Free</p>
                         <p className="text-xs text-slate-400 mt-1">Return service</p>
@@ -441,7 +441,7 @@ export default function SupportPage() {
                               <span className="text-sm text-slate-300 group-hover:text-cyan-400 transition">
                                 {service}
                               </span>
-                            </label>
+                          </label>
                           )
                         )}
                       </div>
@@ -485,27 +485,27 @@ export default function SupportPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {[
-                        { date: "05 Dec 2025", service: "Oil change", status: "Completed" },
-                        { date: "20 Oct 2025", service: "Battery check", status: "Completed" },
-                      ].map((pickup, i) => (
+                    {[
+                      { date: "05 Dec 2025", service: "Oil change", status: "Completed" },
+                      { date: "20 Oct 2025", service: "Battery check", status: "Completed" },
+                    ].map((pickup, i) => (
                         <Card
-                          key={i}
+                        key={i}
                           className="bg-slate-900/30 backdrop-blur-sm border-slate-700/30 hover:border-cyan-500/40 transition-all shadow-md"
-                        >
+                      >
                           <CardContent className="p-4 flex items-center justify-between">
-                            <div>
+                        <div>
                               <p className="font-medium text-slate-100 text-sm">
-                                {pickup.date} • {pickup.service}
-                              </p>
-                            </div>
+                            {pickup.date} • {pickup.service}
+                          </p>
+                        </div>
                             <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                              {pickup.status}
+                          {pickup.status}
                             </Badge>
                           </CardContent>
                         </Card>
-                      ))}
-                    </div>
+                    ))}
+                  </div>
                   </CardContent>
                 </Card>
               </div>
@@ -519,47 +519,47 @@ export default function SupportPage() {
                     <CardTitle className="text-2xl text-cyan-400">FAQ & Help Center</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {/* Search */}
-                    <div className="mb-6 relative">
+                  {/* Search */}
+                  <div className="mb-6 relative">
                       <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-                      <input
-                        type="text"
-                        placeholder="Search help topics..."
+                    <input
+                      type="text"
+                      placeholder="Search help topics..."
                         className="w-full bg-slate-900/30 backdrop-blur-sm pl-12 pr-4 py-3 rounded-lg border border-slate-700/30 text-slate-100 placeholder:text-slate-500 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
-                      />
-                    </div>
+                    />
+                  </div>
 
-                    {/* Popular Topics */}
+                  {/* Popular Topics */}
                     <h3 className="font-semibold text-slate-400 mb-4 text-sm uppercase tracking-wide">
-                      Popular Topics
-                    </h3>
+                    Popular Topics
+                  </h3>
 
-                    <div className="space-y-2">
-                      {[
-                        "How to read error codes",
-                        "What does bearing seal degradation mean?",
-                        "Battery SOH explained",
-                        "How to reduce brake wear",
-                        "Tyre rotation schedule",
-                        "Warranty coverage details",
-                        "How to claim refunds",
-                        "Payment issues troubleshooting",
-                      ].map((faq, i) => (
+                  <div className="space-y-2">
+                    {[
+                      "How to read error codes",
+                      "What does bearing seal degradation mean?",
+                      "Battery SOH explained",
+                      "How to reduce brake wear",
+                      "Tyre rotation schedule",
+                      "Warranty coverage details",
+                      "How to claim refunds",
+                      "Payment issues troubleshooting",
+                    ].map((faq, i) => (
                         <Button
-                          key={i}
+                        key={i}
                           variant="outline"
                           className="w-full bg-slate-900/30 backdrop-blur-sm border-slate-700/30 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition-all text-left justify-between group p-4 h-auto"
-                        >
+                      >
                           <span className="font-medium text-slate-300 text-sm group-hover:text-cyan-400 transition">
-                            {faq}
-                          </span>
+                          {faq}
+                        </span>
                           <ChevronRight
                             size={16}
                             className="text-slate-400 group-hover:text-cyan-400 transition flex-shrink-0"
                           />
                         </Button>
-                      ))}
-                    </div>
+                    ))}
+                  </div>
                   </CardContent>
                 </Card>
               </div>
