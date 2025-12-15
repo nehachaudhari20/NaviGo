@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from agents.data_analysis.agent import DataAnalysisAgent
-from agents.data_analysis.schemas import TelematicsEvent
+from functions.agents.data_analysis.agent import DataAnalysisAgent
+from functions.agents.data_analysis.schemas import TelematicsEvent
 
 app = FastAPI()
 

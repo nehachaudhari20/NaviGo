@@ -2,7 +2,6 @@
 node_modules/
 .pnp
 .pnp.js
-**/node_modules/
 /.pnp
 .pnp.js
 
@@ -78,7 +77,7 @@ Desktop.ini
 # Turbopack
 .turbo
 
-# Lock files (keep pnpm-lock.yaml but ignore others if needed)
+# Lock files (keep pnpm-lock.yaml)
 # Uncomment if you want to ignore lock files:
 # package-lock.json
 # yarn.lock

@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Wrench, CreditCard, LifeBuoy, Settings, User, LogOut, ChevronDown } from "lucide-react"
+import { usePathname } from "next/navigation"
+import { LayoutDashboard, Wrench, CreditCard, LifeBuoy, Settings, User, LogOut, ChevronDown, BarChart3 } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
 
 export default function Sidebar() {
   const [supportOpen, setSupportOpen] = useState(false)
@@ -99,6 +100,24 @@ export default function Sidebar() {
             <CreditCard size={18} />
           </div>
           <span className="text-sm font-medium">Account</span>
+        </Link>
+
+        {/* Analytics */}
+        <Link
+          href="/analytics"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+            isActive("/analytics") ? "bg-primary/20 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"
+          }`}
+          title="Analytics"
+        >
+          <div
+            className={`flex items-center justify-center w-8 h-8 rounded-lg ${
+              isActive("/analytics") ? "bg-primary text-white" : "bg-transparent text-sidebar-foreground"
+            }`}
+          >
+            <BarChart3 size={18} />
+          </div>
+          <span className="text-sm font-medium">Analytics</span>
         </Link>
 
         {/* Support with Submenu */}
