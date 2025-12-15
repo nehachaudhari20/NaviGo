@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/contexts/auth-context"
 import ChatbotWrapper from "@/components/chatbot-wrapper"
+import Script from "next/script"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -45,6 +46,10 @@ export default function RootLayout({
           <ChatbotWrapper />
         </AuthProvider>
         <Analytics />
+        {/* Load UEBA test helpers in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <Script src="/ueba-test-helpers.js" strategy="afterInteractive" />
+        )}
       </body>
     </html>
   )

@@ -5,6 +5,8 @@ import { MessageCircle, X, Send, Bot, User, Minimize2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { uebaService } from "@/lib/analytics"
+import { useAuth } from "@/contexts/auth-context"
 
 interface Message {
   id: number
@@ -14,6 +16,7 @@ interface Message {
 }
 
 export default function Chatbot() {
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
@@ -27,6 +30,17 @@ export default function Chatbot() {
   const [inputValue, setInputValue] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Intent detection function
+  const detectIntent = (message: string): string => {
+    const lowerMsg = message.toLowerCase()
+    if (lowerMsg.includes('service') || lowerMsg.includes('maintenance')) return 'service_inquiry'
+    if (lowerMsg.includes('emergency') || lowerMsg.includes('urgent')) return 'emergency'
+    if (lowerMsg.includes('health') || lowerMsg.includes('status')) return 'health_check'
+    if (lowerMsg.includes('schedule') || lowerMsg.includes('appointment')) return 'scheduling'
+    if (lowerMsg.includes('cost') || lowerMsg.includes('price')) return 'cost_inquiry'
+    return 'general'
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -45,6 +59,10 @@ export default function Chatbot() {
   const handleSend = () => {
     if (!inputValue.trim()) return
 
+    const startTime = Date.now()
+    const userId = user?.email || 'anonymous'
+    const intent = detectIntent(inputValue)
+
     const userMessage: Message = {
       id: messages.length + 1,
       text: inputValue,
@@ -53,10 +71,20 @@ export default function Chatbot() {
     }
 
     setMessages([...messages, userMessage])
+    
+    // Track user message with UEBA
+    uebaService.trackChatbotInteraction({
+      message: inputValue,
+      responseTime: 0,
+      userId,
+      intent,
+    })
+    
     setInputValue("")
 
     // Simulate bot response
     setTimeout(() => {
+      const responseTime = Date.now() - startTime
       const botResponses = [
         "I understand your concern. Let me help you with that.",
         "Based on your vehicle data, I can provide some insights.",
@@ -73,6 +101,14 @@ export default function Chatbot() {
       }
 
       setMessages((prev) => [...prev, botMessage])
+      
+      // Track bot response time with UEBA
+      uebaService.trackChatbotInteraction({
+        message: botMessage.text,
+        responseTime,
+        userId,
+        intent: 'bot_response',
+      })
     }, 1000)
   }
 
@@ -91,6 +127,10 @@ export default function Chatbot() {
   ]
 
   const handleQuickQuestion = (question: string) => {
+    const startTime = Date.now()
+    const userId = user?.email || 'anonymous'
+    const intent = detectIntent(question)
+
     const userMessage: Message = {
       id: messages.length + 1,
       text: question,
@@ -99,8 +139,17 @@ export default function Chatbot() {
     }
 
     setMessages([...messages, userMessage])
+    
+    // Track quick question with UEBA
+    uebaService.trackChatbotInteraction({
+      message: question,
+      responseTime: 0,
+      userId,
+      intent,
+    })
 
     setTimeout(() => {
+      const responseTime = Date.now() - startTime
       const responses: Record<string, string> = {
         "Check vehicle health": "Your vehicle health score is 87%. All systems are operating normally. Would you like detailed information about any specific component?",
         "Schedule service": "I can help you schedule a service. Your next recommended service is due in 15 days. Would you like to book an appointment?",
@@ -116,6 +165,14 @@ export default function Chatbot() {
       }
 
       setMessages((prev) => [...prev, botMessage])
+      
+      // Track bot response with UEBA
+      uebaService.trackChatbotInteraction({
+        message: botMessage.text,
+        responseTime,
+        userId,
+        intent: 'bot_response',
+      })
     }, 1000)
   }
 
