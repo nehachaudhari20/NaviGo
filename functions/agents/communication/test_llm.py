@@ -2,6 +2,13 @@
 Test LLM Integration with Communication Agents
 """
 
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from agent import VoiceCommunicationAgent
 from sms_agent import SMSAgent
 from schemas import VehicleDefect, VehicleStatus

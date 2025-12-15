@@ -1,10 +1,27 @@
 from typing import List, Dict, Optional
 from datetime import datetime
 import re
+import os
 from schemas import (
     VehicleDefect, VehicleStatus, ConversationContext, 
     UserResponse, AgentMessage, CommunicationOutput
 )
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, assume env vars are set
+
+# Twilio for voice calls
+try:
+    from twilio.rest import Client
+    from twilio.twiml.voice_response import VoiceResponse, Gather
+    TWILIO_AVAILABLE = True
+except ImportError:
+    TWILIO_AVAILABLE = False
+    print("Twilio not available - voice calls disabled")
 
 # LLM Service for advanced analysis and response generation
 try:
@@ -23,6 +40,20 @@ class VoiceCommunicationAgent:
     def __init__(self):
         self.session_id = None
         self.context: Optional[ConversationContext] = None
+        
+        # Initialize Twilio client
+        self.twilio_client = None
+        self.twilio_phone_number = None
+        if TWILIO_AVAILABLE:
+            account_sid = os.getenv('TWILIO_ACCOUNT_SID')
+            auth_token = os.getenv('TWILIO_AUTH_TOKEN')
+            self.twilio_phone_number = os.getenv('TWILIO_PHONE_NUMBER')
+            
+            if account_sid and auth_token:
+                self.twilio_client = Client(account_sid, auth_token)
+                print(f"✓ Twilio initialized ({self.twilio_phone_number})")
+            else:
+                print("⚠ Twilio credentials not configured")
         
         # Initialize LLM service (falls back to rule-based if not configured)
         self.llm_service = LLMService() if LLM_AVAILABLE else None
@@ -397,3 +428,216 @@ class VoiceCommunicationAgent:
             contains_technical_terms=False,
             simplified_version=response
         )
+    
+    def make_voice_call(self, to_phone_number: str, customer_name: str, 
+                       callback_url: str) -> Dict[str, str]:
+        """
+        Initiate a voice call to customer using Twilio
+        
+        Args:
+            to_phone_number: Customer's phone number (E.164 format: +919876543210)
+            customer_name: Customer's name for personalization
+            callback_url: URL for Twilio to fetch TwiML instructions
+            
+        Returns:
+            Dict with call status and SID
+        """
+        if not self.twilio_client:
+            return {
+                'status': 'error',
+                'message': 'Twilio not configured',
+                'call_sid': None
+            }
+        
+        try:
+            # Make the call
+            call = self.twilio_client.calls.create(
+                to=to_phone_number,
+                from_=self.twilio_phone_number,
+                url=callback_url,
+                method='POST',
+                status_callback=f"{callback_url}/status",
+                status_callback_event=['initiated', 'ringing', 'answered', 'completed'],
+                status_callback_method='POST'
+            )
+            
+            return {
+                'status': 'success',
+                'message': f'Call initiated to {to_phone_number}',
+                'call_sid': call.sid,
+                'call_status': call.status
+            }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Failed to initiate call: {str(e)}',
+                'call_sid': None
+            }
+    
+    def generate_twiml_greeting(self, customer_name: str, 
+                               gather_url: str) -> str:
+        """
+        Generate TwiML response for initial greeting
+        
+        Args:
+            customer_name: Customer's name
+            gather_url: URL for gathering user input
+            
+        Returns:
+            TwiML XML string
+        """
+        response = VoiceResponse()
+        
+        # Generate greeting message
+        greeting_msg = self.generate_greeting(customer_name, "afternoon")
+        
+        # Use Gather to collect user response (speech or DTMF)
+        gather = Gather(
+            input='speech dtmf',
+            timeout=5,
+            num_digits=1,
+            action=gather_url,
+            method='POST',
+            speech_timeout='auto',
+            hints='yes,no,schedule,details,later'
+        )
+        
+        gather.say(greeting_msg.message, voice='Polly.Aditi', language='en-IN')
+        
+        response.append(gather)
+        
+        # If no input, repeat
+        response.say(
+            "I didn't hear a response. I'll send you the details via SMS. Have a great day!",
+            voice='Polly.Aditi',
+            language='en-IN'
+        )
+        
+        return str(response)
+    
+    def generate_twiml_defect_explanation(self, defect: VehicleDefect,
+                                         gather_url: str,
+                                         user_tone: str = "neutral") -> str:
+        """
+        Generate TwiML for explaining a defect
+        
+        Args:
+            defect: Vehicle defect to explain
+            gather_url: URL for gathering user response
+            user_tone: User's conversation tone
+            
+        Returns:
+            TwiML XML string
+        """
+        response = VoiceResponse()
+        
+        # Generate defect explanation
+        explanation = self.explain_defect(
+            defect,
+            user_preference=self.context.user_language_preference if self.context else "simple",
+            tone=user_tone
+        )
+        
+        # Gather user response
+        gather = Gather(
+            input='speech dtmf',
+            timeout=5,
+            action=gather_url,
+            method='POST',
+            speech_timeout='auto',
+            hints='yes,no,schedule,cost,how serious,wait,details'
+        )
+        
+        gather.say(explanation.message, voice='Polly.Aditi', language='en-IN')
+        gather.say(
+            "Would you like to schedule a service appointment? Press 1 for yes, 2 for no, or just speak your response.",
+            voice='Polly.Aditi',
+            language='en-IN'
+        )
+        
+        response.append(gather)
+        
+        # Default response if no input
+        response.say(
+            "I'll send you the full details via SMS. You can call us anytime to schedule service. Thank you!",
+            voice='Polly.Aditi',
+            language='en-IN'
+        )
+        
+        return str(response)
+    
+    def generate_twiml_question_response(self, question: str, defect: VehicleDefect,
+                                        gather_url: str) -> str:
+        """
+        Generate TwiML for answering user questions
+        
+        Args:
+            question: User's question
+            defect: Current defect being discussed
+            gather_url: URL for gathering next response
+            
+        Returns:
+            TwiML XML string
+        """
+        response = VoiceResponse()
+        
+        # Generate answer
+        answer = self.handle_user_question(question, defect)
+        
+        # Speak the answer
+        response.say(answer.message, voice='Polly.Aditi', language='en-IN')
+        
+        # Gather follow-up
+        gather = Gather(
+            input='speech dtmf',
+            timeout=5,
+            action=gather_url,
+            method='POST',
+            speech_timeout='auto'
+        )
+        
+        gather.say(
+            "Do you have any other questions? Or would you like to schedule service?",
+            voice='Polly.Aditi',
+            language='en-IN'
+        )
+        
+        response.append(gather)
+        response.redirect(gather_url)
+        
+        return str(response)
+    
+    def generate_twiml_schedule_confirmation(self, service_center_name: str,
+                                            appointment_time: str) -> str:
+        """
+        Generate TwiML for confirming service appointment
+        
+        Args:
+            service_center_name: Name of the service center
+            appointment_time: Scheduled appointment time
+            
+        Returns:
+            TwiML XML string
+        """
+        response = VoiceResponse()
+        
+        message = f"Great! I've scheduled your service appointment at {service_center_name} for {appointment_time}. "
+        message += "You'll receive a confirmation SMS with all the details shortly. "
+        message += "Is there anything else I can help you with?"
+        
+        response.say(message, voice='Polly.Aditi', language='en-IN')
+        
+        # Final gather for any last questions
+        gather = Gather(
+            input='speech dtmf',
+            timeout=3,
+            num_digits=1,
+            speech_timeout='auto'
+        )
+        gather.say("Press 1 if you have more questions, or simply hang up. Thank you!")
+        
+        response.append(gather)
+        response.say("Thank you for using NaviGo. Drive safe!", voice='Polly.Aditi', language='en-IN')
+        response.hangup()
+        
+        return str(response)
