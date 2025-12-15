@@ -3,20 +3,20 @@
 import { useEffect, useState, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { BarChart3, CheckSquare, Truck, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { BarChart3, Wrench, FileText } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import ServiceCenterSidebar from "@/components/service-center/sidebar"
 import ServiceCenterHeader from "@/components/service-center/header"
-import PerformanceMetrics from "@/components/service-center/performance-metrics"
-import MaintenanceOverview from "@/components/service-center/maintenance-overview"
-import CostDetails from "@/components/service-center/cost-details"
+import PerformanceSummary from "@/components/service-center/performance-summary"
+import BusinessIntelligence from "@/components/service-center/business-intelligence"
+import OperationsOverview from "@/components/service-center/operations-overview"
+import PriorityManagement from "@/components/service-center/priority-management"
+import InventoryMonitoring from "@/components/service-center/inventory-monitoring"
+import TelemetryMonitoring from "@/components/service-center/telemetry-monitoring"
+import FeedbackValidation from "@/components/service-center/feedback-validation"
+import ServiceAnalyticsSummary from "@/components/service-center/analytics-summary"
 import DeliveryOverview from "@/components/service-center/delivery-overview"
-import DailyServiceLoad from "@/components/service-center/daily-service-load"
-import BookedAppointments from "@/components/service-center/booked-appointments"
-import PriorityVehicleQueue from "@/components/service-center/priority-vehicle-queue"
-import TechnicianAssignment from "@/components/service-center/technician-assignment"
-import SparePartsRequirements from "@/components/service-center/spare-parts-requirements"
-import FleetAnomalyList from "@/components/service-center/fleet-anomaly-list"
+import CostDetails from "@/components/service-center/cost-details"
 
 function DashboardContent() {
   const { isAuthenticated, user } = useAuth()
@@ -57,70 +57,81 @@ function DashboardContent() {
           <div className="p-6 max-w-7xl mx-auto">
             {/* Page Header */}
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Service Center</h1>
               <p className="text-sm text-gray-600">Overview of your service center operations and performance</p>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 border-b border-gray-200 mb-6">
-              <button className="px-4 py-2.5 text-sm font-semibold text-gray-900 border-b-2 border-blue-600 flex items-center gap-2">
-                <BarChart3 size={16} />
-                Dashboard
-              </button>
-              <button className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 flex items-center gap-2">
-                <CheckSquare size={16} />
-                Order
-              </button>
-              <button className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 flex items-center gap-2">
-                <Truck size={16} />
-                Delivery
-              </button>
-            </div>
+            {/* Functional Tabs */}
+            <Tabs defaultValue="dashboard" className="w-full">
+              <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 bg-gray-100 p-1">
+                <TabsTrigger 
+                  value="dashboard" 
+                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  <BarChart3 size={16} />
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="services" 
+                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  <Wrench size={16} />
+                  Services
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="reports" 
+                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  <FileText size={16} />
+                  Reports
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Key Performance Metrics */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <PerformanceMetrics 
-                title="Service Center Performance"
-                value="$156,098"
-                change="2.9%"
-                trend="up"
-                type="revenue"
-              />
-              <PerformanceMetrics 
-                title="Technician Performance"
-                value="$156,098"
-                change="2.9%"
-                trend="down"
-                type="technician"
-              />
-            </div>
+              {/* Dashboard Tab Content */}
+              <TabsContent value="dashboard" className="space-y-6 mt-0">
+                {/* Performance Summary */}
+                <PerformanceSummary />
 
-            {/* Daily Operations - Compact Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <DailyServiceLoad />
-              <BookedAppointments />
-            </div>
+                {/* Business Intelligence (ROI, Compliance, Human-AI) - Tabbed */}
+                <BusinessIntelligence />
 
-            {/* Priority Management */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <PriorityVehicleQueue />
-              <TechnicianAssignment />
-            </div>
+                {/* Priority Management (Queue, Technicians, Human Review) */}
+                <PriorityManagement />
 
-            {/* Inventory & Monitoring */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <SparePartsRequirements />
-              <FleetAnomalyList />
-            </div>
+                {/* Telemetry Monitoring */}
+                <TelemetryMonitoring showChart={true} />
 
-            {/* Maintenance & Analytics */}
-            <div className="space-y-6">
-              <MaintenanceOverview />
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <CostDetails />
+                {/* Inventory & Fleet Monitoring */}
+                <InventoryMonitoring />
+              </TabsContent>
+
+              {/* Services Tab Content - Active Services & Appointments */}
+              <TabsContent value="services" className="space-y-6 mt-0">
+                {/* Daily Operations Overview (Service Load + Appointments) */}
+                <OperationsOverview />
+
+                {/* Priority Vehicle Queue & Technician Assignment */}
+                <PriorityManagement />
+
+                {/* Telemetry Monitoring for Active Services */}
+                <TelemetryMonitoring showChart={true} />
+              </TabsContent>
+
+              {/* Reports Tab Content - Completed Services, Analytics & Feedback */}
+              <TabsContent value="reports" className="space-y-6 mt-0">
+                {/* Service Analytics Summary */}
+                <ServiceAnalyticsSummary />
+
+                {/* Delivery Overview */}
                 <DeliveryOverview />
-              </div>
-            </div>
+
+                {/* Cost Details */}
+                <CostDetails />
+
+                {/* Feedback & Validation */}
+                <FeedbackValidation />
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>

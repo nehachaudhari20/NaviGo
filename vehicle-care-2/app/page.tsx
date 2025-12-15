@@ -9,6 +9,9 @@ import VehicleCard from "@/components/vehicle-card"
 import ServiceHistory from "@/components/service-history"
 import HealthIndicators from "@/components/health-indicators"
 import NearbyProviders from "@/components/nearby-providers"
+import AIPredictionsTransparent from "@/components/ai-predictions-transparent"
+import CustomerValue from "@/components/customer-value"
+import HealthSummary from "@/components/health-summary"
 
 export default function DashboardPage() {
   const { isAuthenticated, user } = useAuth()
@@ -41,11 +44,17 @@ export default function DashboardPage() {
         <Header />
         <main className="flex-1 overflow-auto">
           <div className="max-w-[1400px] mx-auto p-6 space-y-6">
-            {/* Vehicle Overview & Maintenance Card (Merged) */}
+            {/* Vehicle Overview & Maintenance Card */}
             <VehicleCard />
 
-            {/* Health Indicators */}
-            <HealthIndicators />
+            {/* AI Predictions with Transparency (Combined) */}
+            <AIPredictionsTransparent />
+
+            {/* Value Dashboard */}
+            <CustomerValue />
+
+            {/* Component Health Summary (Compact) */}
+            <HealthSummary />
 
             {/* Intervention History - Extended Full Width */}
             <ServiceHistory />

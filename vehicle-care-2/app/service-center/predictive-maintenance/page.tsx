@@ -27,8 +27,12 @@ import {
   Shield,
   Bell,
   Calendar,
-  Users
+  Users,
+  Sparkles
 } from "lucide-react"
+import ConfidenceIndicator from "@/components/service-center/confidence-indicator"
+import RCAReasoning from "@/components/service-center/rca-reasoning"
+import { useRouter } from "next/navigation"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, BarChart, Bar } from "recharts"
 
 interface Vehicle {
@@ -430,6 +434,7 @@ const trendData = [
 
 function PredictiveMaintenanceContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles)
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [filter, setFilter] = useState<"all" | "critical" | "warning" | "normal">("all")
@@ -738,9 +743,28 @@ function PredictiveMaintenanceContent() {
                                     <Badge className="bg-purple-100 text-purple-700 border-purple-300 text-xs">
                                       Priority {vehicle.priority}
                                     </Badge>
-                                    <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                                      {vehicle.confidence}% Confidence
-                                    </Badge>
+                                    <ConfidenceIndicator 
+                                      confidence={vehicle.confidence}
+                                      breakdown={{
+                                        prediction: 85,
+                                        historical: 88,
+                                        dataQuality: 92,
+                                        patternMatch: 75
+                                      }}
+                                      showBreakdown={true}
+                                      size="sm"
+                                    />
+                                    {vehicle.confidence >= 85 && (
+                                      <Badge className="bg-green-100 text-green-700 border-green-300 text-xs flex items-center gap-1">
+                                        <Sparkles size={10} />
+                                        Auto-Action
+                                      </Badge>
+                                    )}
+                                    {vehicle.confidence < 85 && (
+                                      <Badge className="bg-orange-100 text-orange-700 border-orange-300 text-xs">
+                                        Review Required
+                                      </Badge>
+                                    )}
                                   </div>
                                   <p className="text-xs text-gray-500 font-mono mb-2">{vehicle.regNumber}</p>
                                   <p className="text-sm text-gray-700 font-medium mb-2">{vehicle.predictedFailure}</p>
@@ -809,11 +833,32 @@ function PredictiveMaintenanceContent() {
                                 </div>
                               </div>
                               <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                                <Button size="sm" variant="outline" className="text-xs">
-                                  Schedule Service
-                                  <Calendar size={12} className="ml-1" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="text-xs">
+                                {vehicle.confidence >= 85 ? (
+                                  <Button 
+                                    size="sm" 
+                                    className="flex-1 text-xs bg-green-600 hover:bg-green-700"
+                                    onClick={() => router.push(`/service-center/autonomous-scheduling?vehicleId=${vehicle.id}`)}
+                                  >
+                                    <Sparkles size={12} className="mr-1" />
+                                    View Auto-Scheduled
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="flex-1 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                                    onClick={() => router.push(`/service-center?reviewId=${vehicle.id}`)}
+                                  >
+                                    <AlertTriangle size={12} className="mr-1" />
+                                    Review Required
+                                  </Button>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="text-xs"
+                                  onClick={() => setSelectedVehicle(vehicle)}
+                                >
                                   View Details
                                   <ChevronRight size={12} className="ml-1" />
                                 </Button>
@@ -971,6 +1016,13 @@ function PredictiveMaintenanceContent() {
                             </CardContent>
                           </Card>
                         )}
+
+                        <RCAReasoning
+                          predictionId={selectedVehicle.id}
+                          component={selectedVehicle.predictedFailure.split(" ")[0]}
+                          issueType={selectedVehicle.predictedFailure}
+                          severity={selectedVehicle.status}
+                        />
 
                         <Card>
                           <CardHeader className="pb-3">

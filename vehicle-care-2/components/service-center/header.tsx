@@ -5,6 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
+import RealtimeNotifications from "@/components/service-center/realtime-notifications"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,10 +52,8 @@ export default function ServiceCenterHeader({ onMenuClick }: ServiceCenterHeader
 
         {/* Right Section */}
         <div className="flex items-center gap-4">
-          {/* Notifications */}
-          <button className="relative p-2 hover:bg-white/10 rounded transition-colors">
-            <Bell size={18} />
-          </button>
+          {/* Real-time Notifications */}
+          <RealtimeNotifications />
 
           {/* Messages */}
           <button className="relative p-2 hover:bg-white/10 rounded transition-colors">

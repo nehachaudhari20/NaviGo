@@ -5,13 +5,11 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import ManufacturerSidebar from "@/components/manufacturer/sidebar"
 import ManufacturerHeader from "@/components/manufacturer/header"
-import KPICards from "@/components/manufacturer/kpi-cards"
-import AIInsights from "@/components/manufacturer/ai-insights"
-import AIQualityPredictions from "@/components/manufacturer/ai-quality-predictions"
-import NotificationsPanel from "@/components/manufacturer/notifications-panel"
-import ComplianceDashboard from "@/components/manufacturer/compliance-dashboard"
+import CurrentStock from "@/components/manufacturer/current-stock"
+import PendingOrders from "@/components/manufacturer/pending-orders"
+import TopProduct from "@/components/manufacturer/top-product"
 
-export default function ManufacturerPage() {
+export default function InventoryPage() {
   const { isAuthenticated, user } = useAuth()
   const router = useRouter()
 
@@ -21,7 +19,6 @@ export default function ManufacturerPage() {
       return
     }
     
-    // Redirect if not manufacturer persona
     if (user?.persona !== "manufacturer") {
       if (user?.persona === "customer") {
         router.push("/")
@@ -46,29 +43,23 @@ export default function ManufacturerPage() {
           <div className="p-6 lg:p-8 space-y-6 max-w-[1920px] mx-auto">
             {/* Page Header */}
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-white mb-2">Manufacturing Dashboard</h1>
-              <p className="text-gray-400 text-sm">Overview of operations, AI insights, and compliance status</p>
+              <h1 className="text-3xl font-bold text-white mb-2">Inventory Management</h1>
+              <p className="text-gray-400 text-sm">Track stock levels, pending orders, and top products</p>
             </div>
 
-            {/* Top Row: KPI Cards */}
-            <KPICards />
-
-            {/* AI Features Row */}
-            <div className="grid grid-cols-12 gap-6">
-              <div className="col-span-4">
-                <AIInsights />
-              </div>
-              <div className="col-span-4">
-                <AIQualityPredictions />
-              </div>
-              <div className="col-span-4">
-                <NotificationsPanel />
-              </div>
-            </div>
-
-            {/* Compliance Dashboard */}
+            {/* Current Stock */}
             <div className="mb-6">
-              <ComplianceDashboard />
+              <CurrentStock />
+            </div>
+
+            {/* Pending Orders & Top Product */}
+            <div className="grid grid-cols-12 gap-6">
+              <div className="col-span-8">
+                <PendingOrders />
+              </div>
+              <div className="col-span-4">
+                <TopProduct />
+              </div>
             </div>
           </div>
         </main>

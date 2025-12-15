@@ -26,6 +26,7 @@ import {
   RotateCcw
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import LearningLoopMetrics from "@/components/service-center/learning-loop-metrics"
 
 interface WorkerAgent {
   id: string
@@ -411,6 +412,11 @@ function AgenticAIContent() {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Learning Loop Metrics */}
+            <div className="mt-6">
+              <LearningLoopMetrics />
             </div>
 
             {/* Override Controls */}

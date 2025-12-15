@@ -10,12 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Import professional components
 import HeroSection from "@/components/servicing/hero-section"
-import PredictedIssuesCard from "@/components/servicing/predicted-issues-card"
+import AIPredictionsServices from "@/components/servicing/ai-predictions-services"
 import EngineComponent from "@/components/servicing/engine-component"
 import TransmissionComponent from "@/components/servicing/transmission-component"
 import BrakesComponent from "@/components/servicing/brakes-component"
 import TyreSection from "@/components/servicing/tyre-section"
-import ServiceRecommendations from "@/components/servicing/service-recommendations"
 import AnalyticsSummary from "@/components/servicing/analytics-summary"
 
 export default function ServicingPage() {
@@ -91,52 +90,6 @@ export default function ServicingPage() {
     { day: "Day 30", FL: 2.2, FR: 2.2, RL: 2.1, RR: 2.2 },
   ]
 
-  // Service Recommendations
-  const recommendedServices = [
-    {
-      id: 1,
-      name: "Brake Pad Replacement (Front + Rear)",
-      priority: "URGENT",
-      priorityColor: "bg-red-500/20",
-      priorityText: "text-red-600",
-      borderColor: "border-red-500",
-      km: "500 km",
-      cost: "₹5,200",
-      time: "2 hours",
-      confidence: "94% (Very High)",
-      why: "Front pads at 78% wear, deteriorating 0.75%/day. Failure risk 12% if delayed >10 days.",
-      benefit: "Prevent ₹45,000 emergency repair. Cost savings: ₹39,800.",
-    },
-    {
-      id: 2,
-      name: "Oil Change + Coolant Top-up",
-      priority: "HIGH",
-      priorityColor: "bg-yellow-500/20",
-      priorityText: "text-yellow-600",
-      borderColor: "border-yellow-500",
-      km: "1,300 km",
-      cost: "₹800",
-      time: "30 mins",
-      confidence: "92% (Very High)",
-      why: "Engine temp elevated (91°C vs 82°C baseline). Coolant at 95%.",
-      benefit: "Restore thermal baseline. Extend engine lifespan by 2+ years.",
-    },
-    {
-      id: 3,
-      name: "Transmission Fluid Flush",
-      priority: "HIGH",
-      priorityColor: "bg-yellow-500/20",
-      priorityText: "text-yellow-600",
-      borderColor: "border-yellow-500",
-      km: "5,000 km",
-      cost: "₹2,500",
-      time: "3 hours",
-      confidence: "88% (High)",
-      why: "Fluid pressure declining. Shift delay 145ms (normal <100ms).",
-      benefit: "Restore pressure 135→160 bar. Prevent ₹35,000 emergency repair.",
-    },
-  ]
-
   // Analytics Summary
   const analyticsSummary = {
     anomalies: 7,
@@ -147,46 +100,69 @@ export default function ServicingPage() {
     falsePositive: "2.1%",
   }
 
-  // Predicted Issues Data
-  const predictedIssues = [
+  // Merged AI Predictions & Services Data
+  const aiPredictionsServices = [
     {
       id: 1,
       component: "Brake System",
       issue: "Front brake pads at 78% wear, deteriorating 0.75% per day",
+      serviceName: "Brake Pad Replacement (Front + Rear)",
       severity: "critical" as const,
+      priority: "URGENT" as const,
       confidence: 94,
       predictedDate: "Sep 20, 2024",
       impact: "Risk of brake failure if delayed >10 days",
       recommendation: "Schedule pad replacement within 500 km",
       status: "active" as const,
+      km: "500 km",
+      cost: "₹5,200",
+      time: "2 hours",
+      why: "Front pads at 78% wear, deteriorating 0.75%/day. Failure risk 12% if delayed >10 days.",
+      benefit: "Prevent ₹45,000 emergency repair. Cost savings: ₹39,800.",
     },
     {
       id: 2,
       component: "Engine Cooling System",
       issue: "Engine temperature elevated (91°C vs 82°C baseline)",
+      serviceName: "Oil Change + Coolant Top-up",
       severity: "high" as const,
+      priority: "HIGH" as const,
       confidence: 92,
       predictedDate: "Sep 25, 2024",
       impact: "Potential overheating and engine damage",
       recommendation: "Oil change + coolant top-up within 1,300 km",
       status: "active" as const,
+      km: "1,300 km",
+      cost: "₹800",
+      time: "30 mins",
+      why: "Engine temp elevated (91°C vs 82°C baseline). Coolant at 95%.",
+      benefit: "Restore thermal baseline. Extend engine lifespan by 2+ years.",
     },
     {
       id: 3,
       component: "Transmission",
       issue: "Fluid pressure declining, shift delay increasing",
+      serviceName: "Transmission Fluid Flush",
       severity: "high" as const,
+      priority: "HIGH" as const,
       confidence: 88,
       predictedDate: "Oct 5, 2024",
       impact: "Transmission failure risk if not addressed",
       recommendation: "Schedule fluid flush within 5,000 km",
       status: "active" as const,
+      km: "5,000 km",
+      cost: "₹2,500",
+      time: "3 hours",
+      why: "Fluid pressure declining. Shift delay 145ms (normal <100ms).",
+      benefit: "Restore pressure 135→160 bar. Prevent ₹35,000 emergency repair.",
     },
     {
       id: 4,
       component: "Tyre System",
       issue: "Rear Left tyre showing gradual pressure drop",
+      serviceName: "Tyre Inspection & Pressure Check",
       severity: "medium" as const,
+      priority: "MEDIUM" as const,
       confidence: 75,
       predictedDate: "Oct 15, 2024",
       impact: "Possible slow leak or natural pressure loss",
@@ -205,8 +181,8 @@ export default function ServicingPage() {
             {/* PART 2: HERO SECTION */}
             <HeroSection vehicleInfo={vehicleInfo} healthStatus={healthStatus} />
 
-            {/* PART 3: PREDICTED ISSUES */}
-            <PredictedIssuesCard issues={predictedIssues} />
+            {/* PART 3: AI PREDICTIONS & RECOMMENDED SERVICES (MERGED) */}
+            <AIPredictionsServices predictions={aiPredictionsServices} />
 
             {/* PART 4: MECHANICAL COMPONENTS */}
             <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20">
@@ -245,8 +221,6 @@ export default function ServicingPage() {
             {/* PART 5: TYRE SECTION */}
             <TyreSection tyrePressureData={tyrePressureData} />
 
-            {/* PART 6: SERVICE RECOMMENDATIONS */}
-            <ServiceRecommendations services={recommendedServices} />
 
             {/* PART 7: ANALYTICS SUMMARY */}
             <AnalyticsSummary analytics={analyticsSummary} />
