@@ -1,65 +1,46 @@
-# data_analysis/agent.py
+# agents/data_analysis/agent.py
 
-from typing import List
 from .schemas import TelematicsEvent, AnomalyOutput
-from .thresholds import get_threshold
-from .model import SimpleAnomalyModel
 
 class DataAnalysisAgent:
 
     def __init__(self):
-        self.model = SimpleAnomalyModel()
+        # Any thresholds you want to define can go here
+        self.temp_threshold = 95.0
+        self.rpm_threshold = 6500
+        self.battery_drop_threshold = 20
 
-    def detect_anomaly(self, events: List[TelematicsEvent]) -> AnomalyOutput:
+    def run(self, event: TelematicsEvent) -> AnomalyOutput:
         """
-        Input: List of telemetry events (sliding window)
-        Output: AnomalyOutput
+        Main entry point for the agent.
+        MUST BE NAMED 'run' because FastAPI calls agent.run()
         """
-
-        if not events:
-            raise ValueError("No telemetry events received")
-
-        latest = events[-1]
-        vehicle_id = latest.vehicle_id
 
         anomaly_detected = False
         anomaly_type = None
         severity_score = 0.0
 
-        # Check engine coolant temperature
-        if latest.engine_coolant_temp_c is not None:
-            threshold = get_threshold("engine_coolant_temp_c")
-            if self.model.detect_spike(latest.engine_coolant_temp_c, threshold):
-                anomaly_detected = True
-                anomaly_type = "thermal_overheat"
-                severity_score = self.model.compute_severity(latest.engine_coolant_temp_c, threshold)
-
-        # Check battery health
-        if latest.battery_soh_pct is not None:
-            threshold = get_threshold("battery_soh_pct")
-            if latest.battery_soh_pct < threshold:
-                anomaly_detected = True
-                anomaly_type = "battery_degradation"
-                severity_score = max(severity_score, 1 - (latest.battery_soh_pct / threshold))
-
-        # Check engine RPM
-        if latest.engine_rpm is not None:
-            threshold = get_threshold("engine_rpm")
-            if self.model.detect_spike(latest.engine_rpm, threshold):
-                anomaly_detected = True
-                anomaly_type = "rpm_spike"
-                severity_score = max(severity_score, self.model.compute_severity(latest.engine_rpm, threshold))
-
-        # Check DTC codes
-        if latest.dtc_codes:
+        # ----- SIMPLE RULE-BASED LOGIC (MVP) -----
+        if event.engine_coolant_temp_c and event.engine_coolant_temp_c > self.temp_threshold:
             anomaly_detected = True
-            anomaly_type = "dtc_fault"
-            severity_score = max(severity_score, 0.7)
+            anomaly_type = "thermal"
+            severity_score = min(1.0, (event.engine_coolant_temp_c - 90) / 50)
 
+        elif event.engine_rpm and event.engine_rpm > self.rpm_threshold:
+            anomaly_detected = True
+            anomaly_type = "mechanical"
+            severity_score = min(1.0, (event.engine_rpm - 5000) / 3000)
+
+        elif event.battery_soc_pct and event.battery_soc_pct < self.battery_drop_threshold:
+            anomaly_detected = True
+            anomaly_type = "electrical"
+            severity_score = min(1.0, (20 - event.battery_soc_pct) / 20)
+
+        # Return Pydantic model
         return AnomalyOutput(
-            vehicle_id=vehicle_id,
+            vehicle_id=event.vehicle_id,
             anomaly_detected=anomaly_detected,
             anomaly_type=anomaly_type,
-            severity_score=round(severity_score, 3),
-            telemetry_window=events
+            severity_score=severity_score,
+            telemetry_window=[event]  # minimal MVP
         )
