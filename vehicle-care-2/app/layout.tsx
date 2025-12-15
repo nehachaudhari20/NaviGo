@@ -42,7 +42,7 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`font-sans antialiased dark`} suppressHydrationWarning>
         <AuthProvider>
-          {children}
+        {children}
           <ChatbotWrapper />
         </AuthProvider>
         <Analytics />

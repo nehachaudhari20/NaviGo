@@ -113,7 +113,7 @@ export default function ServiceHistory() {
             <Button size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white">
               <Plus size={14} className="mr-2" />
               Add
-            </Button>
+        </Button>
           </div>
         </div>
       </CardHeader>
@@ -139,9 +139,9 @@ export default function ServiceHistory() {
       </div>
 
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
+          <thead>
               <tr className="border-b border-slate-700/30 bg-slate-800/20 backdrop-blur-sm">
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   <div className="flex items-center gap-2">
@@ -164,9 +164,9 @@ export default function ServiceHistory() {
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   Cost
                 </th>
-              </tr>
-            </thead>
-            <tbody>
+            </tr>
+          </thead>
+          <tbody>
               {INTERVENTIONS.map((intervention, index) => (
                 <tr
                   key={index}
@@ -218,16 +218,16 @@ export default function ServiceHistory() {
                   <td className="px-6 py-4">
                     <div>
                       <p className="text-sm text-slate-300 font-medium">{intervention.cost}</p>
-                      {intervention.saved && (
+                  {intervention.saved && (
                         <p className="text-xs text-green-400">Saved {intervention.saved}</p>
-                      )}
+                  )}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
         {/* Pagination */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-700/30 bg-slate-800/20 backdrop-blur-sm">
           <p className="text-xs text-slate-400">Showing 1-8 of 16 interventions</p>
@@ -237,23 +237,23 @@ export default function ServiceHistory() {
             </Button>
             {[1, 2, 3, 4, 5].map((page) => (
               <Button
-                key={page}
+            key={page}
                 variant={page === 1 ? "default" : "outline"}
                 size="sm"
                 className={
-                  page === 1
+              page === 1
                     ? "bg-cyan-500 hover:bg-cyan-600 text-white"
                     : "border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
                 }
-              >
-                {page}
+          >
+            {page}
               </Button>
-            ))}
+        ))}
             <Button variant="outline" size="sm" className="border-slate-700/50 text-slate-300 hover:bg-slate-700/50">
               Next
             </Button>
-          </div>
-        </div>
+      </div>
+    </div>
       </CardContent>
     </Card>
   )

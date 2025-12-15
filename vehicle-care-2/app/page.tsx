@@ -11,16 +11,27 @@ import HealthIndicators from "@/components/health-indicators"
 import NearbyProviders from "@/components/nearby-providers"
 
 export default function DashboardPage() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push("/login")
+      return
     }
-  }, [isAuthenticated, router])
+    
+    // Redirect based on persona if not customer
+    if (user?.persona === "service") {
+      router.push("/service-center")
+      return
+    }
+    if (user?.persona === "manufacturer") {
+      router.push("/manufacturer")
+      return
+    }
+  }, [isAuthenticated, user, router])
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || user?.persona !== "customer") {
     return null
   }
   return (

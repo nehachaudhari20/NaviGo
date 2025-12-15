@@ -11,7 +11,7 @@ type Persona = "customer" | "service" | "manufacturer"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, isAuthenticated } = useAuth()
+  const { login, isAuthenticated, user } = useAuth()
   const [selectedPersona, setSelectedPersona] = useState<Persona>("customer")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -19,11 +19,17 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
 
   useEffect(() => {
-    // If already authenticated, redirect to dashboard
-    if (isAuthenticated) {
-      router.push("/")
+    // If already authenticated, redirect to appropriate dashboard based on persona
+    if (isAuthenticated && user) {
+      if (user.persona === "customer") {
+        router.push("/")
+      } else if (user.persona === "service") {
+        router.push("/service-center")
+      } else if (user.persona === "manufacturer") {
+        router.push("/manufacturer")
+      }
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, user, router])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
