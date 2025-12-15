@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "vehicle-care-2/out",
+    "public": "frontend/vehicle-care-2/out",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -23,6 +23,9 @@
         ]
       }
     ]
+  },
+  "functions": {
+    "source": "backend/functions"
   }
 }
 
