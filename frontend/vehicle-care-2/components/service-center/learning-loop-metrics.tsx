@@ -291,17 +291,17 @@ export default function LearningLoopMetrics() {
                   <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h4 className="text-sm font-semibold text-gray-800">{model.modelName}</h4>
-                        <Badge className="bg-gray-100 text-gray-700 border-gray-300 text-xs">
+                      <Badge className="bg-gray-100 text-gray-700 border-gray-300 text-xs">
                         {model.version}
                       </Badge>
                       <Badge className="bg-green-100 text-green-700 border-green-300 text-xs">
                         {model.status}
                       </Badge>
                     </div>
-                      <p className="text-xs text-gray-600">Last trained: {model.lastTrained}</p>
+                    <p className="text-xs text-gray-600">Last trained: {model.lastTrained}</p>
                   </div>
                   <div className="text-right">
-                      <div className="text-2xl font-bold text-gray-900">{model.accuracy.toFixed(1)}%</div>
+                    <div className="text-2xl font-bold text-gray-900">{model.accuracy.toFixed(1)}%</div>
                       <div className="text-xs text-gray-600 font-medium">Accuracy</div>
                   </div>
                 </div>
@@ -309,7 +309,7 @@ export default function LearningLoopMetrics() {
                   <div>
                       <p className="text-xs text-gray-600 mb-1 font-medium">Improvement</p>
                     <div className="flex items-center gap-1">
-                        <TrendingUp size={12} className="text-green-600" />
+                      <TrendingUp size={12} className="text-green-600" />
                         <span className="text-sm font-semibold text-green-700">+{model.improvement.toFixed(1)}%</span>
                       </div>
                     </div>
