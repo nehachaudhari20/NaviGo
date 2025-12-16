@@ -2079,11 +2079,34 @@ Pub/Sub Topic: navigo-rca-complete
    │ Event-driven trigger
    ▼
 
-STEP 6: INTELLIGENT SCHEDULING
+STEP 6: CUSTOMER ENGAGEMENT (Script Generation)
+────────────────────────────────────────────────
+[engagement_agent] Cloud Function (Pub/Sub Trigger)
+   │
+   │ Fetches RCA case (root cause, recommended action)
+   │ Uses Gemini 2.5 Flash LLM to generate customer engagement script
+   │
+   │ Generates:
+   │   - Personalized greeting
+   │   - Defect explanation (simple language)
+   │   - Recommended action
+   │   - Conversation transcript template
+   │
+   │ Stores in Firestore: engagement_cases collection
+   │ Publishes to Pub/Sub: navigo-engagement-complete
+   │
+   ▼
+Pub/Sub Topic: navigo-engagement-complete
+   │
+   │ Event-driven trigger
+   ▼
+
+STEP 7: INTELLIGENT SCHEDULING
 ───────────────────────────────
 [scheduling_agent] Cloud Function (Pub/Sub Trigger)
    │
    │ Fetches diagnosis case (RUL, severity) and RCA data
+   │ Fetches engagement case (customer preferences, conversation context)
    │ Fetches service center availability (technicians, parts, slots)
    │ Uses Gemini 2.5 Flash LLM to optimize scheduling
    │
@@ -2095,35 +2118,11 @@ STEP 6: INTELLIGENT SCHEDULING
    │   - RCA/CAPA-informed decisions → adjusts priority based on root cause
    │
    │ Stores in Firestore: scheduling_cases collection
+   │ Creates booking record in Firestore: bookings collection
    │ Publishes to Pub/Sub: navigo-scheduling-complete
    │
    ▼
 Pub/Sub Topic: navigo-scheduling-complete
-   │
-   │ Event-driven trigger
-   ▼
-
-STEP 7: CUSTOMER ENGAGEMENT (Script Generation)
-────────────────────────────────────────────────
-[engagement_agent] Cloud Function (Pub/Sub Trigger)
-   │
-   │ Fetches RCA case (root cause, recommended action)
-   │ Fetches scheduling case (best_slot, service center)
-   │ Uses Gemini 2.5 Flash LLM to generate customer engagement script
-   │
-   │ Generates:
-   │   - Personalized greeting
-   │   - Defect explanation (simple language)
-   │   - Recommended action
-   │   - Appointment details
-   │   - Conversation transcript template
-   │
-   │ Stores in Firestore: engagement_cases collection
-   │ Creates booking record in Firestore: bookings collection
-   │ Publishes to Pub/Sub: navigo-engagement-complete
-   │
-   ▼
-Pub/Sub Topic: navigo-engagement-complete
    │
    │ Event-driven trigger
    ▼
@@ -2133,6 +2132,7 @@ STEP 8: VOICE COMMUNICATION (Interactive Call)
 [communication_agent] Cloud Function (Pub/Sub Trigger)
    │
    │ Fetches engagement script from engagement_cases
+   │ Fetches scheduling case (best_slot, service center, appointment details)
    │ Initializes VoiceCommunicationAgent (Twilio integration)
    │
    │ MAKES ACTUAL VOICE CALL to customer:
@@ -2517,25 +2517,32 @@ Customer receives SMS confirmation
 ### 4.1.1 Communication Agent Integration Flow
 
 ```
-engagement_agent completes
+engagement_agent completes (generates script)
+   ↓
+Publishes to: navigo-engagement-complete
+   ↓
+scheduling_agent (optimizes appointment slot)
+   ↓
+Publishes to: navigo-scheduling-complete
    ↓
 Publishes to: navigo-communication-trigger
    ↓
 communication_agent (Cloud Function)
    ↓
 1. Fetches engagement script from engagement_cases
-2. Initializes VoiceCommunicationAgent
-3. Makes Twilio voice call to customer
+2. Fetches scheduling case (best_slot, service center, appointment details)
+3. Initializes VoiceCommunicationAgent
+4. Makes Twilio voice call to customer
    ↓
-4. INTERACTIVE CONVERSATION FLOW:
+5. INTERACTIVE CONVERSATION FLOW:
    a. Greeting → Customer responds (yes/no/has time)
    b. Explains vehicle defect → Customer asks questions
    c. Answers questions (cost, urgency, safety) → Customer decides
    d. Asks to schedule → Customer confirms/declines
-   e. Confirms booking → Sends SMS confirmation
+   e. Confirms booking with scheduled slot → Sends SMS confirmation
    ↓
-5. Stores call results in communication_cases
-6. Updates booking if customer confirms
+6. Stores call results in communication_cases
+7. Updates booking if customer confirms
    ↓
 Publishes to: navigo-communication-complete
    ↓
