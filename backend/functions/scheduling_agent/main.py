@@ -192,33 +192,107 @@ def scheduling_agent(cloud_event):
         severity = diagnosis_data.get("severity")
         component = diagnosis_data.get("component")
         
-        # 3. Fetch service center availability data (mock data for MVP - can be replaced with actual service center data)
-        # In production, this would come from a service center management system
-        recommended_center = "center_001"  # Default center
-        
-        # Mock availability data - in production, fetch from service center API or Firestore
-        spare_parts_availability = {
-            "coolant_pump": "available",
-            "coolant_fluid": "available",
-            "battery": "available",
-            "engine_oil": "available"
-        }
-        
-        # Generate available slots for next 30 days (mock data)
-        # In production, fetch from service center scheduling system
+        # 3. Fetch service center availability data dynamically from Firestore
         now = datetime.now(timezone.utc)
-        available_slots = []
-        for day in range(1, 31):
-            slot_date = now + timedelta(days=day)
-            # Business hours: 9 AM to 6 PM
-            for hour in [9, 10, 11, 14, 15, 16, 17]:
-                slot = slot_date.replace(hour=hour, minute=0, second=0, microsecond=0)
-                available_slots.append(slot.isoformat().replace('+00:00', 'Z'))
         
-        technician_availability = {
-            "tech_001": available_slots[:10],  # First 10 slots
-            "tech_002": available_slots[10:20]  # Next 10 slots
-        }
+        # Fetch all service centers
+        service_centers_ref = db.collection("service_centers")
+        service_centers_docs = service_centers_ref.stream()
+        
+        service_centers_data = []
+        for center_doc in service_centers_docs:
+            center_data = center_doc.to_dict()
+            center_data["service_center_id"] = center_doc.id
+            service_centers_data.append(center_data)
+        
+        if not service_centers_data:
+            print("No service centers found in Firestore")
+            return {"status": "error", "error": "No service centers available"}
+        
+        # Select best service center based on proximity, capacity, and availability
+        # For now, use the first available center (can be enhanced with location-based logic)
+        selected_center = service_centers_data[0]
+        recommended_center = selected_center.get("service_center_id")
+        center_timezone = selected_center.get("timezone", "UTC")
+        center_capacity = selected_center.get("capacity", 10)
+        operating_hours = selected_center.get("operating_hours", {})
+        
+        # Fetch existing bookings for this service center to check availability
+        bookings_ref = db.collection("bookings")
+        existing_bookings = bookings_ref.where("service_center", "==", recommended_center).where("status", "in", ["confirmed", "pending"]).stream()
+        
+        booked_slots = set()
+        for booking in existing_bookings:
+            booking_data = booking.to_dict()
+            scheduled_slot = booking_data.get("scheduled_slot")
+            if scheduled_slot:
+                booked_slots.add(scheduled_slot)
+        
+        # Get available slots from service center data
+        available_slots_raw = selected_center.get("available_slots", [])
+        
+        # If no slots in service center document, generate based on operating hours
+        if not available_slots_raw:
+            available_slots_raw = generate_slots_from_operating_hours(operating_hours, center_timezone, now, days_ahead=30)
+        
+        # Filter out booked slots
+        available_slots = [slot for slot in available_slots_raw if slot not in booked_slots]
+        
+        # Check capacity - if center is at capacity, find alternative center
+        if len(booked_slots) >= center_capacity:
+            print(f"Service center {recommended_center} at capacity, checking alternatives...")
+            for alt_center in service_centers_data[1:]:
+                alt_bookings = bookings_ref.where("service_center", "==", alt_center.get("service_center_id")).where("status", "in", ["confirmed", "pending"]).stream()
+                alt_booked_count = sum(1 for _ in alt_bookings)
+                if alt_booked_count < alt_center.get("capacity", 10):
+                    selected_center = alt_center
+                    recommended_center = alt_center.get("service_center_id")
+                    center_timezone = alt_center.get("timezone", "UTC")
+                    available_slots_raw = alt_center.get("available_slots", [])
+                    if not available_slots_raw:
+                        available_slots_raw = generate_slots_from_operating_hours(alt_center.get("operating_hours", {}), center_timezone, now, days_ahead=30)
+                    alt_booked_slots = set()
+                    for booking in bookings_ref.where("service_center", "==", recommended_center).where("status", "in", ["confirmed", "pending"]).stream():
+                        slot = booking.to_dict().get("scheduled_slot")
+                        if slot:
+                            alt_booked_slots.add(slot)
+                    available_slots = [slot for slot in available_slots_raw if slot not in alt_booked_slots]
+                    break
+        
+        # Fetch spare parts availability from service center
+        spare_parts_availability = selected_center.get("spare_parts_availability", {})
+        
+        # If component-specific parts not in center data, check inventory or set default
+        if component and component not in spare_parts_availability:
+            # Try to infer part name from component
+            part_name = component.lower().replace("_", "_")
+            spare_parts_availability[part_name] = selected_center.get("inventory", {}).get(part_name, "available")
+        
+        # Generate technician availability from available slots
+        # In production, this would come from technician scheduling system
+        technicians = selected_center.get("technicians", [])
+        if not technicians:
+            # Default: assign slots to generic technicians
+            technicians = [f"tech_{i+1}" for i in range(min(3, len(available_slots) // 5))]
+        
+        technician_availability = {}
+        slots_per_tech = len(available_slots) // len(technicians) if technicians else len(available_slots)
+        for i, tech_id in enumerate(technicians):
+            start_idx = i * slots_per_tech
+            end_idx = start_idx + slots_per_tech if i < len(technicians) - 1 else len(available_slots)
+            technician_availability[tech_id] = available_slots[start_idx:end_idx]
+        
+        # If no available slots, generate fallback slots
+        if not available_slots:
+            print(f"No available slots for center {recommended_center}, generating fallback slots")
+            available_slots = generate_slots_from_operating_hours(operating_hours, center_timezone, now, days_ahead=60)
+            # Take first 20 slots as available
+            available_slots = available_slots[:20]
+            # Distribute to technicians
+            for i, tech_id in enumerate(technicians):
+                start_idx = i * (len(available_slots) // len(technicians))
+                end_idx = start_idx + (len(available_slots) // len(technicians)) if i < len(technicians) - 1 else len(available_slots)
+                technician_availability[tech_id] = available_slots[start_idx:end_idx]
         
         # 4. Prepare input for Gemini
         input_data = {
@@ -356,4 +430,59 @@ def prepare_bigquery_row(scheduling_data: dict) -> dict:
             bq_row[bq_key] = value
     
     return bq_row
+
+
+def generate_slots_from_operating_hours(operating_hours: dict, timezone_str: str, start_date: datetime, days_ahead: int = 30) -> list:
+    """
+    Generate available time slots based on operating hours.
+    
+    Args:
+        operating_hours: Dict with day names as keys and time ranges as values
+            Example: {"monday": {"start": "09:00", "end": "18:00"}, ...}
+        timezone_str: Timezone string (e.g., "Asia/Kolkata")
+        start_date: Starting datetime (UTC)
+        days_ahead: Number of days to generate slots for
+    
+    Returns:
+        List of ISO timestamp strings in UTC
+    """
+    try:
+        import pytz
+        tz = pytz.timezone(timezone_str)
+    except:
+        # Fallback to UTC if timezone not available
+        import pytz
+        tz = pytz.UTC
+    
+    slots = []
+    default_hours = {"start": "09:00", "end": "18:00"}
+    
+    # Day name mapping
+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    
+    for day_offset in range(1, days_ahead + 1):
+        slot_date = start_date + timedelta(days=day_offset)
+        day_name = day_names[slot_date.weekday()]
+        
+        # Get operating hours for this day
+        day_hours = operating_hours.get(day_name, default_hours)
+        start_time_str = day_hours.get("start", "09:00")
+        end_time_str = day_hours.get("end", "18:00")
+        
+        # Parse time strings
+        start_hour, start_min = map(int, start_time_str.split(":"))
+        end_hour, end_min = map(int, end_time_str.split(":"))
+        
+        # Generate slots for this day (hourly slots)
+        current_hour = start_hour
+        while current_hour < end_hour:
+            # Create datetime in service center timezone
+            local_dt = tz.localize(slot_date.replace(hour=current_hour, minute=0, second=0, microsecond=0))
+            # Convert to UTC
+            utc_dt = local_dt.astimezone(pytz.UTC)
+            # Format as ISO string
+            slots.append(utc_dt.isoformat().replace('+00:00', 'Z'))
+            current_hour += 1
+    
+    return slots
 

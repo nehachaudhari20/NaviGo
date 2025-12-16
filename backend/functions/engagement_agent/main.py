@@ -20,6 +20,7 @@ LOCATION = os.getenv("LOCATION", "us-central1")
 
 # Pub/Sub configuration
 ENGAGEMENT_TOPIC_NAME = "navigo-engagement-complete"
+COMMUNICATION_TOPIC_NAME = "navigo-communication-trigger"
 
 # BigQuery configuration
 DATASET_ID = "telemetry"
@@ -179,8 +180,20 @@ def engagement_agent(cloud_event):
             print("Missing scheduling_id or vehicle_id in message")
             return {"status": "error", "error": "Missing required fields"}
         
-        # 2. Fetch RCA case to get root cause and recommended action
+        # 2. Fetch vehicle data to get customer phone and name
         db = firestore.Client()
+        vehicle_ref = db.collection("vehicles").document(vehicle_id)
+        vehicle_doc = vehicle_ref.get()
+        
+        if not vehicle_doc.exists:
+            print(f"Vehicle {vehicle_id} not found")
+            return {"status": "error", "error": "Vehicle not found"}
+        
+        vehicle_data = vehicle_doc.to_dict()
+        customer_phone = vehicle_data.get("owner_phone") or vehicle_data.get("phone")
+        customer_name = vehicle_data.get("owner_name") or vehicle_data.get("name") or "Customer"
+        
+        # 3. Fetch RCA case to get root cause and recommended action
         rca_ref = db.collection("rca_cases").document(rca_id)
         rca_doc = rca_ref.get()
         
@@ -196,7 +209,7 @@ def engagement_agent(cloud_event):
         best_slot = best_slot or message_data.get("best_slot")
         service_center = service_center or message_data.get("service_center")
         
-        # 3. Prepare input for Gemini
+        # 4. Prepare input for Gemini
         input_data = {
             "vehicle_id": vehicle_id,
             "root_cause": root_cause,
@@ -205,7 +218,7 @@ def engagement_agent(cloud_event):
             "service_center": service_center
         }
         
-        # 4. Initialize Vertex AI and call Gemini 2.5 Flash
+        # 5. Initialize Vertex AI and call Gemini 2.5 Flash
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         model = GenerativeModel("gemini-2.5-flash")
         
@@ -214,7 +227,7 @@ def engagement_agent(cloud_event):
         response = model.generate_content(prompt)
         response_text = response.text
         
-        # 5. Parse Gemini response
+        # 6. Parse Gemini response
         try:
             result = extract_json_from_response(response_text)
         except Exception as e:
@@ -222,19 +235,21 @@ def engagement_agent(cloud_event):
             print(f"Response text: {response_text}")
             raise ValueError(f"Invalid JSON response from Gemini: {e}")
         
-        # 6. Validate result matches schema
+        # 7. Validate result matches schema
         if result.get("vehicle_id") != vehicle_id:
             result["vehicle_id"] = vehicle_id
         
         engagement_id = f"engagement_{uuid.uuid4().hex[:10]}"
         
-        # 7. Prepare engagement data for Firestore
+        # 8. Prepare engagement data for Firestore (include customer info)
         engagement_data = {
             "engagement_id": engagement_id,
             "scheduling_id": scheduling_id,
             "rca_id": rca_id,
             "case_id": case_id,
             "vehicle_id": vehicle_id,
+            "customer_phone": customer_phone,
+            "customer_name": customer_name,
             "customer_decision": result.get("customer_decision"),
             "booking_id": result.get("booking_id"),
             "transcript": result.get("transcript"),
@@ -242,15 +257,15 @@ def engagement_agent(cloud_event):
             "created_at": firestore.SERVER_TIMESTAMP
         }
         
-        # 8. Store in Firestore
+        # 9. Store in Firestore
         db.collection("engagement_cases").document(engagement_id).set(engagement_data)
         print(f"Created engagement case {engagement_id} for vehicle {vehicle_id}")
         
-        # 9. Update scheduling case status
+        # 10. Update scheduling case status
         scheduling_ref = db.collection("scheduling_cases").document(scheduling_id)
         scheduling_ref.update({"status": "engagement_complete"})
         
-        # 10. If booking confirmed, create booking record
+        # 11. If booking confirmed, create booking record
         if result.get("customer_decision") == "confirmed" and result.get("booking_id"):
             booking_data = {
                 "booking_id": result.get("booking_id"),
@@ -264,10 +279,10 @@ def engagement_agent(cloud_event):
             db.collection("bookings").document(result.get("booking_id")).set(booking_data)
             print(f"Created booking {result.get('booking_id')} for vehicle {vehicle_id}")
         
-        # 11. Prepare BigQuery row
+        # 12. Prepare BigQuery row
         bq_row = prepare_bigquery_row(engagement_data)
         
-        # 12. Sync to BigQuery
+        # 13. Sync to BigQuery
         bq_client = bigquery.Client()
         table_ref = bq_client.dataset(DATASET_ID).table(TABLE_ID)
         errors = bq_client.insert_rows_json(table_ref, [bq_row])
@@ -277,7 +292,7 @@ def engagement_agent(cloud_event):
         else:
             print(f"Synced engagement case {engagement_id} to BigQuery")
         
-        # 13. Publish to Pub/Sub
+        # 14. Publish to engagement-complete topic
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(PROJECT_ID, ENGAGEMENT_TOPIC_NAME)
         
@@ -294,6 +309,23 @@ def engagement_agent(cloud_event):
         future = publisher.publish(topic_path, message_bytes)
         message_id = future.result()
         print(f"Published engagement case {engagement_id} to {ENGAGEMENT_TOPIC_NAME}: {message_id}")
+        
+        # 15. Publish to communication-trigger topic (for actual voice call)
+        if customer_phone:  # Only trigger if phone number is available
+            comm_topic_path = publisher.topic_path(PROJECT_ID, COMMUNICATION_TOPIC_NAME)
+            comm_message = {
+                "engagement_id": engagement_id,
+                "case_id": case_id,
+                "vehicle_id": vehicle_id,
+                "customer_phone": customer_phone,
+                "customer_name": customer_name
+            }
+            comm_message_bytes = json.dumps(comm_message).encode("utf-8")
+            comm_future = publisher.publish(comm_topic_path, comm_message_bytes)
+            comm_message_id = comm_future.result()
+            print(f"Published communication trigger for {engagement_id} to {COMMUNICATION_TOPIC_NAME}: {comm_message_id}")
+        else:
+            print(f"Skipping communication trigger - no phone number for vehicle {vehicle_id}")
         
         return {"status": "success", "engagement_id": engagement_id, "booking_id": result.get("booking_id")}
         

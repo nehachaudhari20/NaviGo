@@ -1,27 +1,30 @@
 """
 Cloud Function: master_orchestrator
-Pub/Sub Trigger: Subscribes to all agent completion topics
+Pub/Sub Trigger: Subscribes to navigo-orchestrator topic (all agents publish here)
 Purpose: Routes events and manages pipeline flow (logic-based, no LLM)
 """
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from google.cloud import pubsub_v1, firestore, bigquery
 import functions_framework
 
 # Project configuration
 PROJECT_ID = os.getenv("PROJECT_ID", "navigo-27206")
 
-# Pub/Sub topics for routing
-TOPICS = {
-    "data_analysis": "navigo-anomaly-detected",
-    "diagnosis": "navigo-diagnosis-complete",
-    "rca": "navigo-rca-complete",
-    "scheduling": "navigo-scheduling-complete",
-    "engagement": "navigo-engagement-complete",
-    "feedback": "navigo-feedback-complete",
-    "manufacturing": "navigo-manufacturing-complete"
+# Orchestrator topic (all agents publish here)
+ORCHESTRATOR_TOPIC = "navigo-orchestrator"
+
+# Agent input topics (orchestrator routes to these)
+AGENT_INPUT_TOPICS = {
+    "diagnosis": "navigo-anomaly-detected",
+    "rca": "navigo-diagnosis-complete",
+    "scheduling": "navigo-rca-complete",
+    "engagement": "navigo-scheduling-complete",
+    "communication": "navigo-communication-trigger",
+    "feedback": "navigo-engagement-complete",  # Feedback can be triggered after engagement
+    "manufacturing": "navigo-feedback-complete"
 }
 
 # Confidence threshold for routing
@@ -56,17 +59,11 @@ def master_orchestrator(cloud_event):
             decoded = base64.b64decode(message_data["message"]["data"]).decode("utf-8")
             message_data = json.loads(decoded)
         
-        # 2. Determine which agent sent this message based on topic
-        source = cloud_event.get("source", "")
-        agent_stage = None
+        # 2. Determine which agent sent this message from message structure
+        # Agents should include "agent_stage" in their message, but we can infer it
+        agent_stage = message_data.get("agent_stage")
         
-        # Check which topic this came from
-        for stage, topic_name in TOPICS.items():
-            if topic_name in source or topic_name.replace("navigo-", "") in str(message_data):
-                agent_stage = stage
-                break
-        
-        # If can't determine from source, try to infer from message structure
+        # Infer agent stage from message structure if not explicitly provided
         if not agent_stage:
             if "case_id" in message_data and "anomaly_type" in message_data:
                 agent_stage = "data_analysis"
@@ -82,10 +79,14 @@ def master_orchestrator(cloud_event):
                 agent_stage = "feedback"
             elif "manufacturing_id" in message_data:
                 agent_stage = "manufacturing"
+            elif "communication_id" in message_data:
+                agent_stage = "communication"
         
         if not agent_stage:
-            print("Could not determine agent stage from message")
+            print(f"Could not determine agent stage from message. Message keys: {list(message_data.keys())}")
             return {"status": "error", "error": "Unknown agent stage"}
+        
+        print(f"Determined agent stage: {agent_stage}")
         
         case_id = message_data.get("case_id")
         vehicle_id = message_data.get("vehicle_id")
@@ -94,30 +95,53 @@ def master_orchestrator(cloud_event):
             print("Missing case_id in message")
             return {"status": "error", "error": "Missing case_id"}
         
-        # 3. Extract confidence score from message
+        # 3. Extract confidence score from message or Firestore
         confidence = message_data.get("confidence")
+        db = firestore.Client()
         
-        # If confidence not in message, check Firestore for agent-specific confidence
+        # If confidence not in message, fetch from Firestore based on agent stage
         if confidence is None:
-            db = firestore.Client()
-            
-            if agent_stage == "rca":
-                rca_id = message_data.get("rca_id")
-                if rca_id:
-                    rca_doc = db.collection("rca_cases").document(rca_id).get()
-                    if rca_doc.exists:
-                        confidence = rca_doc.to_dict().get("confidence")
+            if agent_stage == "data_analysis":
+                # Use severity_score as confidence proxy (inverted - higher severity = lower confidence)
+                severity_score = message_data.get("severity_score")
+                if severity_score is not None:
+                    confidence = 1.0 - severity_score  # Invert: severity 0.9 = confidence 0.1
             elif agent_stage == "diagnosis":
                 diagnosis_id = message_data.get("diagnosis_id")
                 if diagnosis_id:
                     diagnosis_doc = db.collection("diagnosis_cases").document(diagnosis_id).get()
                     if diagnosis_doc.exists:
-                        # Convert failure_probability to confidence (inverse)
-                        failure_prob = diagnosis_doc.to_dict().get("failure_probability", 0.0)
-                        confidence = failure_prob  # Use failure_probability as confidence proxy
+                        diagnosis_data = diagnosis_doc.to_dict()
+                        # Use confidence_score if available, else use failure_probability
+                        confidence = diagnosis_data.get("confidence_score")
+                        if confidence is None:
+                            failure_prob = diagnosis_data.get("failure_probability", 0.0)
+                            confidence = failure_prob  # Use failure_probability as confidence proxy
+            elif agent_stage == "rca":
+                rca_id = message_data.get("rca_id")
+                if rca_id:
+                    rca_doc = db.collection("rca_cases").document(rca_id).get()
+                    if rca_doc.exists:
+                        confidence = rca_doc.to_dict().get("confidence")
+            elif agent_stage == "scheduling":
+                # Scheduling doesn't have confidence, use default high confidence
+                confidence = 0.90
+            elif agent_stage == "engagement":
+                # Engagement doesn't have confidence, use default high confidence
+                confidence = 0.90
+            elif agent_stage == "feedback":
+                # Feedback doesn't have confidence, use default high confidence
+                confidence = 0.90
+            elif agent_stage == "manufacturing":
+                # Manufacturing doesn't have confidence, use default high confidence
+                confidence = 0.90
+        
+        # Default confidence if still None
+        if confidence is None:
+            confidence = 0.85  # Default to threshold value
+            print(f"Warning: No confidence found for {agent_stage}, using default {confidence}")
         
         # 4. Apply confidence check and route
-        db = firestore.Client()
         publisher = pubsub_v1.PublisherClient()
         
         # Pipeline flow definition
@@ -126,15 +150,20 @@ def master_orchestrator(cloud_event):
             "diagnosis": "rca",
             "rca": "scheduling",
             "scheduling": "engagement",
-            "engagement": None,  # Engagement is end of customer-facing flow
+            "engagement": None,  # Engagement triggers communication separately
+            "communication": None,  # Communication is end of customer-facing flow
             "feedback": "manufacturing",
             "manufacturing": None  # Manufacturing is end of pipeline
         }
         
         next_stage = pipeline_flow.get(agent_stage)
         
-        # 5. Check confidence threshold
-        if confidence is not None and confidence < CONFIDENCE_THRESHOLD:
+        # 5. Check confidence threshold (only for critical stages)
+        # Skip confidence check for scheduling, engagement, feedback, manufacturing (they're downstream)
+        critical_stages = ["data_analysis", "diagnosis", "rca"]
+        requires_confidence_check = agent_stage in critical_stages
+        
+        if requires_confidence_check and confidence is not None and confidence < CONFIDENCE_THRESHOLD:
             # Route to human review
             print(f"Confidence {confidence} below threshold {CONFIDENCE_THRESHOLD}, routing to human review")
             
@@ -158,18 +187,23 @@ def master_orchestrator(cloud_event):
         
         # 6. Route to next agent if exists
         if next_stage:
-            next_topic = TOPICS.get(next_stage)
+            next_topic = AGENT_INPUT_TOPICS.get(next_stage)
             if next_topic:
                 topic_path = publisher.topic_path(PROJECT_ID, next_topic)
-                message_bytes = json.dumps(message_data).encode("utf-8")
+                # Ensure message includes agent_stage for next agent's context
+                routing_message = message_data.copy()
+                routing_message["agent_stage"] = next_stage
+                message_bytes = json.dumps(routing_message).encode("utf-8")
                 future = publisher.publish(topic_path, message_bytes)
                 message_id = future.result()
-                print(f"Routed case {case_id} from {agent_stage} to {next_stage}: {message_id}")
+                print(f"Routed case {case_id} from {agent_stage} to {next_stage} via {next_topic}: {message_id}")
                 
                 # Update pipeline state
                 update_pipeline_state(db, case_id, agent_stage, next_stage, confidence)
                 
-                return {"status": "routed", "from": agent_stage, "to": next_stage, "case_id": case_id}
+                return {"status": "routed", "from": agent_stage, "to": next_stage, "case_id": case_id, "confidence": confidence}
+            else:
+                print(f"Warning: No input topic found for next stage {next_stage}")
         
         # 7. Pipeline complete
         print(f"Pipeline complete for case {case_id} at stage {agent_stage}")

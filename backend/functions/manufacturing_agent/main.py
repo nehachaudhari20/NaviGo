@@ -76,20 +76,26 @@ RECURRENCE CLUSTER SIZE:
 
 ANALYSIS APPROACH:
 1. Review root_cause to identify if it's manufacturing-related
-2. Check recurrence_count - high recurrence = potential manufacturing defect
-3. Consider cei_score - low CEI = significant customer impact
-4. Determine if issue is:
-   - Design flaw (component specification issue)
-   - Manufacturing defect (assembly or quality control issue)
-   - Supplier issue (material or component quality)
-5. Generate specific CAPA recommendation addressing the root cause
+2. Check recurrence_count (same vehicle) - high recurrence = potential manufacturing defect
+3. Check fleet_recurrence_count - high fleet recurrence = manufacturing batch issue affecting multiple vehicles
+4. Check component_recurrence_count - component-specific issues may indicate supplier or design problem
+5. Consider cei_score - low CEI = significant customer impact
+6. Determine if issue is:
+   - Design flaw (component specification issue) - indicated by high component_recurrence_count
+   - Manufacturing defect (assembly or quality control issue) - indicated by high fleet_recurrence_count
+   - Supplier issue (material or component quality) - indicated by component issues across fleet
+7. Generate specific CAPA recommendation addressing the root cause
+8. Calculate recurrence_cluster_size based on fleet data - use fleet_recurrence_count as primary indicator
 
 INPUT FORMAT (you will receive):
 {
   "vehicle_id": "string",
   "root_cause": "string (detailed root cause from RCA agent)",
   "cei_score": float (1.0 to 5.0),
-  "recurrence_count": int (how many times this issue occurred for this vehicle)
+  "recurrence_count": int (how many times this issue occurred for this vehicle),
+  "fleet_recurrence_count": int (how many vehicles in fleet have this issue),
+  "component_recurrence_count": int (how many vehicles have issues with this component),
+  "component": "string (component name)"
 }
 
 OUTPUT FORMAT (you MUST return EXACTLY this JSON structure):
@@ -206,19 +212,36 @@ def manufacturing_agent(cloud_event):
             print(f"Anomaly case {case_id} not found")
             return {"status": "error", "error": "Anomaly case not found"}
         
-        # Get all cases for this vehicle to calculate recurrence
+        # Get all cases for this vehicle to calculate recurrence (same vehicle)
         all_cases_query = db.collection("anomaly_cases").where("vehicle_id", "==", vehicle_id).stream()
         all_cases = list(all_cases_query)
         
-        # Count how many times this specific anomaly type occurred
+        # Count how many times this specific anomaly type occurred for this vehicle
         current_case_data = case_doc.to_dict()
         anomaly_type = current_case_data.get("anomaly_type")
+        component = current_case_data.get("component")
         
         recurrence_count = 0
         for case in all_cases:
             case_data = case.to_dict()
             if case_data.get("anomaly_type") == anomaly_type:
                 recurrence_count += 1
+        
+        # Calculate fleet-wide recurrence (across all vehicles) for better CAPA insights
+        # This helps identify if it's a manufacturing batch issue
+        fleet_recurrence_query = db.collection("anomaly_cases").where("anomaly_type", "==", anomaly_type).stream()
+        fleet_cases = list(fleet_recurrence_query)
+        fleet_recurrence_count = len(fleet_cases)
+        
+        # Also check for similar issues by component across fleet
+        component_recurrence_count = 0
+        if component:
+            component_cases_query = db.collection("anomaly_cases").where("component", "==", component).stream()
+            component_cases = list(component_cases_query)
+            component_recurrence_count = len(component_cases)
+        
+        # Use the higher of fleet or component recurrence for cluster size estimation
+        estimated_cluster_size = max(fleet_recurrence_count, component_recurrence_count, recurrence_count)
         
         # 4. Fetch RCA case to get root cause
         # Find RCA case linked to this case_id
@@ -232,15 +255,31 @@ def manufacturing_agent(cloud_event):
         rca_data = rca_cases[0].to_dict()
         root_cause = rca_data.get("root_cause")
         
-        # 5. Prepare input for Gemini
+        # 5. Check for existing similar manufacturing cases to avoid duplicate CAPA
+        existing_manufacturing_query = db.collection("manufacturing_cases").where("case_id", "==", case_id).limit(1).stream()
+        existing_manufacturing = list(existing_manufacturing_query)
+        
+        if existing_manufacturing:
+            print(f"Manufacturing case already exists for case_id {case_id}, skipping")
+            existing_data = existing_manufacturing[0].to_dict()
+            return {
+                "status": "skipped",
+                "message": "Manufacturing case already exists",
+                "manufacturing_id": existing_data.get("manufacturing_id")
+            }
+        
+        # 6. Prepare input for Gemini (include fleet-wide data for better insights)
         input_data = {
             "vehicle_id": vehicle_id,
             "root_cause": root_cause,
             "cei_score": cei_score,
-            "recurrence_count": recurrence_count
+            "recurrence_count": recurrence_count,
+            "fleet_recurrence_count": fleet_recurrence_count,
+            "component_recurrence_count": component_recurrence_count,
+            "component": component
         }
         
-        # 6. Initialize Vertex AI and call Gemini 2.5 Flash
+        # 7. Initialize Vertex AI and call Gemini 2.5 Flash
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         model = GenerativeModel("gemini-2.5-flash")
         
@@ -249,7 +288,7 @@ def manufacturing_agent(cloud_event):
         response = model.generate_content(prompt)
         response_text = response.text
         
-        # 7. Parse Gemini response
+        # 8. Parse Gemini response
         try:
             result = extract_json_from_response(response_text)
         except Exception as e:
@@ -257,13 +296,19 @@ def manufacturing_agent(cloud_event):
             print(f"Response text: {response_text}")
             raise ValueError(f"Invalid JSON response from Gemini: {e}")
         
-        # 8. Validate result matches schema
+        # 9. Validate result matches schema
         if result.get("vehicle_id") != vehicle_id:
             result["vehicle_id"] = vehicle_id
         
         manufacturing_id = f"manufacturing_{uuid.uuid4().hex[:10]}"
         
-        # 9. Prepare manufacturing data for Firestore
+        # 10. Calculate recurrence_cluster_size based on fleet data
+        # Use Gemini's estimate if provided, otherwise use calculated fleet recurrence
+        recurrence_cluster_size = int(result.get("recurrence_cluster_size", estimated_cluster_size))
+        if recurrence_cluster_size < 1:
+            recurrence_cluster_size = max(1, estimated_cluster_size)
+        
+        # 11. Prepare manufacturing data for Firestore
         manufacturing_data = {
             "manufacturing_id": manufacturing_id,
             "feedback_id": feedback_id,
@@ -272,24 +317,26 @@ def manufacturing_agent(cloud_event):
             "issue": result.get("issue"),
             "capa_recommendation": result.get("capa_recommendation"),
             "severity": result.get("severity"),
-            "recurrence_cluster_size": int(result.get("recurrence_cluster_size", 1)),
+            "recurrence_cluster_size": recurrence_cluster_size,
             "recurrence_count": recurrence_count,
+            "fleet_recurrence_count": fleet_recurrence_count,
+            "component_recurrence_count": component_recurrence_count,
             "cei_score": cei_score,
             "status": "completed",
             "created_at": firestore.SERVER_TIMESTAMP
         }
         
-        # 10. Store in Firestore
+        # 12. Store in Firestore
         db.collection("manufacturing_cases").document(manufacturing_id).set(manufacturing_data)
         print(f"Created manufacturing case {manufacturing_id} for vehicle {vehicle_id}")
         
-        # 11. Update feedback case status
+        # 13. Update feedback case status
         feedback_ref.update({"status": "manufacturing_complete"})
         
-        # 12. Prepare BigQuery row
+        # 14. Prepare BigQuery row
         bq_row = prepare_bigquery_row(manufacturing_data)
         
-        # 13. Sync to BigQuery
+        # 15. Sync to BigQuery
         bq_client = bigquery.Client()
         table_ref = bq_client.dataset(DATASET_ID).table(TABLE_ID)
         errors = bq_client.insert_rows_json(table_ref, [bq_row])
@@ -299,7 +346,7 @@ def manufacturing_agent(cloud_event):
         else:
             print(f"Synced manufacturing case {manufacturing_id} to BigQuery")
         
-        # 14. Publish to Pub/Sub
+        # 16. Publish to Pub/Sub
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(PROJECT_ID, MANUFACTURING_TOPIC_NAME)
         
