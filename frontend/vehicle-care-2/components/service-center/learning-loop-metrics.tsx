@@ -111,27 +111,31 @@ export default function LearningLoopMetrics() {
     <div className="space-y-6">
       {/* Overview Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Target size={16} className="text-blue-600" />
+        <Card className="relative bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-50 border-2 border-blue-300 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+          <CardHeader className="pb-3 bg-white/60">
+            <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <div className="p-2 bg-blue-100 rounded-lg border border-blue-200">
+                <Target size={18} className="text-blue-700" />
+              </div>
               Current Accuracy
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900 mb-1">{latestAccuracy.toFixed(1)}%</div>
-            <div className="text-xs text-gray-600">Latest Model Performance</div>
-            <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
+            <div className="text-xs text-gray-700 font-medium">Latest Model Performance</div>
+            <div className="mt-2 flex items-center gap-1 text-xs text-green-700 font-semibold">
               <TrendingUp size={12} />
               <span>+{improvement.toFixed(1)}% improvement</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Brain size={16} className="text-purple-600" />
+        <Card className="relative bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 border-2 border-purple-300 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+          <CardHeader className="pb-3 bg-white/60">
+            <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <div className="p-2 bg-purple-100 rounded-lg border border-purple-200">
+                <Brain size={18} className="text-purple-700" />
+              </div>
               Learning Rate
             </CardTitle>
           </CardHeader>
@@ -141,15 +145,17 @@ export default function LearningLoopMetrics() {
                 ? (modelPerformance.reduce((sum, m) => sum + m.learningRate, 0) / modelPerformance.length * 100).toFixed(1)
                 : 0}%
             </div>
-            <div className="text-xs text-gray-600">Average Across Models</div>
-            <div className="mt-2 text-xs text-gray-500">Improving weekly</div>
+            <div className="text-xs text-gray-700 font-medium">Average Across Models</div>
+            <div className="mt-2 text-xs text-gray-600 font-medium">Improving weekly</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-green-600" />
+        <Card className="relative bg-gradient-to-br from-green-50 via-emerald-50 to-green-50 border-2 border-green-300 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+          <CardHeader className="pb-3 bg-white/60">
+            <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <div className="p-2 bg-green-100 rounded-lg border border-green-200">
+                <CheckCircle2 size={18} className="text-green-700" />
+              </div>
               Feedback Received
             </CardTitle>
           </CardHeader>
@@ -157,31 +163,35 @@ export default function LearningLoopMetrics() {
             <div className="text-2xl font-bold text-gray-900 mb-1">
               {modelPerformance.reduce((sum, m) => sum + m.feedbackCount, 0).toLocaleString()}
             </div>
-            <div className="text-xs text-gray-600">Total Validations</div>
-            <div className="mt-2 text-xs text-green-600">+234 this month</div>
+            <div className="text-xs text-gray-700 font-medium">Total Validations</div>
+            <div className="mt-2 text-xs text-green-700 font-semibold">+234 this month</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <RefreshCw size={16} className="text-orange-600" />
+        <Card className="relative bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 border-2 border-orange-300 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+          <CardHeader className="pb-3 bg-white/60">
+            <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <div className="p-2 bg-orange-100 rounded-lg border border-orange-200">
+                <RefreshCw size={18} className="text-orange-700" />
+              </div>
               Models Active
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900 mb-1">{modelPerformance.length}</div>
-            <div className="text-xs text-gray-600">In Production</div>
-            <div className="mt-2 text-xs text-gray-500">All models healthy</div>
+            <div className="text-xs text-gray-700 font-medium">In Production</div>
+            <div className="mt-2 text-xs text-gray-600 font-medium">All models healthy</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Accuracy Trend Chart */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <BarChart3 size={18} className="text-blue-600" />
+      <Card className="relative bg-white border-2 border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+        <CardHeader className="pb-3 border-b border-gray-200 bg-gray-50">
+          <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
+            <div className="p-2 bg-blue-100 rounded-lg border border-blue-200">
+              <BarChart3 size={18} className="text-blue-700" />
+            </div>
             Accuracy Trend (7 Weeks)
           </CardTitle>
         </CardHeader>
@@ -191,18 +201,26 @@ export default function LearningLoopMetrics() {
               <AreaChart data={metrics}>
                 <defs>
                   <linearGradient id="accuracyGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="date" stroke="#6b7280" fontSize={12} />
                 <YAxis stroke="#6b7280" fontSize={12} domain={[75, 95]} />
-                <Tooltip />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: "rgba(255, 255, 255, 0.95)",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    color: "#1f2937",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+                  }}
+                />
                 <Area
                   type="monotone"
                   dataKey="accuracy"
-                  stroke="#3b82f6"
+                  stroke="#60a5fa"
                   fill="url(#accuracyGradient)"
                   strokeWidth={2}
                   name="Accuracy (%)"
@@ -210,7 +228,7 @@ export default function LearningLoopMetrics() {
                 <Line
                   type="monotone"
                   dataKey="precision"
-                  stroke="#10b981"
+                  stroke="#34d399"
                   strokeWidth={2}
                   dot={false}
                   name="Precision (%)"
@@ -218,7 +236,7 @@ export default function LearningLoopMetrics() {
                 <Line
                   type="monotone"
                   dataKey="recall"
-                  stroke="#f59e0b"
+                  stroke="#fbbf24"
                   strokeWidth={2}
                   dot={false}
                   name="Recall (%)"
@@ -228,88 +246,102 @@ export default function LearningLoopMetrics() {
           </div>
           <div className="mt-4 grid grid-cols-3 gap-4 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-blue-500"></div>
-              <span className="text-gray-600">Accuracy</span>
+              <div className="w-3 h-3 rounded bg-blue-600"></div>
+              <span className="text-gray-700 font-medium">Accuracy</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-green-500"></div>
-              <span className="text-gray-600">Precision</span>
+              <div className="w-3 h-3 rounded bg-green-600"></div>
+              <span className="text-gray-700 font-medium">Precision</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-yellow-500"></div>
-              <span className="text-gray-600">Recall</span>
+              <div className="w-3 h-3 rounded bg-amber-500"></div>
+              <span className="text-gray-700 font-medium">Recall</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Model Performance Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <Brain size={18} className="text-purple-600" />
+      <Card className="relative bg-white border-2 border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+        <CardHeader className="pb-3 border-b border-gray-200 bg-gray-50">
+          <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
+            <div className="p-2 bg-purple-100 rounded-lg border border-purple-200">
+              <Brain size={18} className="text-purple-700" />
+            </div>
             Model Performance
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {modelPerformance.map((model, idx) => (
+            {modelPerformance.map((model, idx) => {
+              // Color coding for each model
+              const modelColors = [
+                { bg: "from-blue-50 to-cyan-50", border: "border-blue-300", icon: "text-blue-700", progress: "bg-blue-600", iconBg: "bg-blue-100" },
+                { bg: "from-purple-50 to-pink-50", border: "border-purple-300", icon: "text-purple-700", progress: "bg-purple-600", iconBg: "bg-purple-100" },
+                { bg: "from-cyan-50 to-teal-50", border: "border-cyan-300", icon: "text-cyan-700", progress: "bg-cyan-600", iconBg: "bg-cyan-100" },
+              ]
+              const colors = modelColors[idx % modelColors.length]
+              
+              return (
               <div
                 key={idx}
-                className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
+                  className={`p-4 bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-lg hover:shadow-md transition-all`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-sm font-semibold text-gray-900">{model.modelName}</h4>
-                      <Badge className="bg-gray-100 text-gray-700 border-gray-300 text-xs">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h4 className="text-sm font-semibold text-gray-800">{model.modelName}</h4>
+                        <Badge className="bg-gray-100 text-gray-700 border-gray-300 text-xs">
                         {model.version}
                       </Badge>
-                      <Badge className={`text-xs ${getStatusColor(model.status)}`}>
+                      <Badge className="bg-green-100 text-green-700 border-green-300 text-xs">
                         {model.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-600">Last trained: {model.lastTrained}</p>
+                      <p className="text-xs text-gray-600">Last trained: {model.lastTrained}</p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-900">{model.accuracy.toFixed(1)}%</div>
-                    <div className="text-xs text-gray-600">Accuracy</div>
+                      <div className="text-2xl font-bold text-gray-900">{model.accuracy.toFixed(1)}%</div>
+                      <div className="text-xs text-gray-600 font-medium">Accuracy</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3 mb-3">
                   <div>
-                    <p className="text-xs text-gray-600 mb-1">Improvement</p>
+                      <p className="text-xs text-gray-600 mb-1 font-medium">Improvement</p>
                     <div className="flex items-center gap-1">
-                      <TrendingUp size={12} className="text-green-600" />
-                      <span className="text-sm font-semibold text-green-600">+{model.improvement.toFixed(1)}%</span>
+                        <TrendingUp size={12} className="text-green-600" />
+                        <span className="text-sm font-semibold text-green-700">+{model.improvement.toFixed(1)}%</span>
+                      </div>
                     </div>
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1 font-medium">Feedback</p>
+                      <p className="text-sm font-semibold text-gray-800">{model.feedbackCount.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600 mb-1">Feedback</p>
-                    <p className="text-sm font-semibold text-gray-900">{model.feedbackCount.toLocaleString()}</p>
+                      <p className="text-xs text-gray-600 mb-1 font-medium">Learning Rate</p>
+                      <p className="text-sm font-semibold text-gray-800">{(model.learningRate * 100).toFixed(0)}%</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-600 mb-1">Learning Rate</p>
-                    <p className="text-sm font-semibold text-gray-900">{(model.learningRate * 100).toFixed(0)}%</p>
                   </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div
-                    className="bg-blue-600 h-1.5 rounded-full"
+                      className={`${colors.progress} h-2.5 rounded-full transition-all`}
                     style={{ width: `${model.accuracy}%` }}
                   ></div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </CardContent>
       </Card>
 
       {/* Recent Learning Events */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <RefreshCw size={18} className="text-orange-600" />
+      <Card className="relative bg-white border-2 border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+        <CardHeader className="pb-3 border-b border-gray-200 bg-gray-50">
+          <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
+            <div className="p-2 bg-orange-100 rounded-lg border border-orange-200">
+              <RefreshCw size={18} className="text-orange-700" />
+            </div>
             Recent Learning Events
           </CardTitle>
         </CardHeader>
@@ -322,20 +354,22 @@ export default function LearningLoopMetrics() {
             ].map((event, idx) => (
               <div
                 key={idx}
-                className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg"
+                className="flex items-start gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 transition-all"
               >
-                <div className={`p-1.5 rounded-lg ${
-                  event.type === "success" ? "bg-green-100" : "bg-blue-100"
+                <div className={`p-1.5 rounded-lg border-2 ${
+                  event.type === "success" 
+                    ? "bg-green-100 text-green-700 border-green-300" 
+                    : "bg-blue-100 text-blue-700 border-blue-300"
                 }`}>
                   {event.type === "success" ? (
-                    <CheckCircle2 size={14} className="text-green-600" />
+                    <CheckCircle2 size={14} />
                   ) : (
-                    <AlertCircle size={14} className="text-blue-600" />
+                    <AlertCircle size={14} />
                   )}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-gray-900">{event.event}</p>
-                  <p className="text-xs text-gray-500 mt-1">{event.time}</p>
+                  <p className="text-sm text-gray-800 font-medium">{event.event}</p>
+                  <p className="text-xs text-gray-600 mt-1">{event.time}</p>
                 </div>
               </div>
             ))}

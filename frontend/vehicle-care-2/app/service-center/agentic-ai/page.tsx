@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import LearningLoopMetrics from "@/components/service-center/learning-loop-metrics"
+import AIControlCentre from "@/components/service-center/ai-control-centre"
 
 interface WorkerAgent {
   id: string
@@ -229,14 +230,15 @@ function AgenticAIContent() {
                   <p className="text-sm text-gray-600">Master Agent orchestration and Worker Agent monitoring</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge className={`${masterAgentStatus === "running" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"} border text-sm px-4 py-1.5 flex items-center gap-2`}>
-                    <div className={`w-2 h-2 rounded-full ${masterAgentStatus === "running" ? "bg-green-600 animate-pulse" : "bg-gray-400"}`}></div>
+                  <Badge className={`${masterAgentStatus === "running" ? "bg-green-100 text-green-700 border-green-300" : "bg-gray-100 text-gray-700 border-gray-300"} border-2 text-sm px-4 py-1.5 flex items-center gap-2`}>
+                    <div className={`w-2 h-2 rounded-full ${masterAgentStatus === "running" ? "bg-green-400 animate-pulse" : "bg-gray-400"}`}></div>
                     Master Agent {masterAgentStatus === "running" ? "Running" : "Paused"}
                   </Badge>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setMasterAgentStatus(masterAgentStatus === "running" ? "paused" : "running")}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-100"
                   >
                     {masterAgentStatus === "running" ? (
                       <>
@@ -250,7 +252,7 @@ function AgenticAIContent() {
                       </>
                     )}
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-100">
                     <Settings size={16} className="mr-2" />
                     Settings
                   </Button>
@@ -260,59 +262,67 @@ function AgenticAIContent() {
 
             {/* Master Agent Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-              <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Brain size={18} className="text-purple-600" />
+              <Card className="relative bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+                <CardHeader className="pb-3 bg-white/50">
+                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <div className="p-2 bg-purple-100 rounded-lg border border-purple-200">
+                      <Brain size={18} className="text-purple-700" />
+                    </div>
                     Master Agent
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-gray-900 mb-1">Orchestrating</div>
-                  <div className="text-xs text-gray-600">6 Worker Agents Active</div>
+                  <div className="text-xs text-gray-700 mb-3 font-medium">6 Worker Agents Active</div>
                   <div className="mt-3">
-                    <Progress value={95} className="h-2" />
-                    <div className="text-xs text-gray-600 mt-1">95% System Health</div>
+                    <Progress value={95} className="h-2.5 bg-purple-100" />
+                    <div className="text-xs text-gray-700 mt-1.5 font-semibold">95% System Health</div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Activity size={18} className="text-blue-600" />
+              <Card className="relative bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-300 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+                <CardHeader className="pb-3 bg-white/50">
+                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <div className="p-2 bg-blue-100 rounded-lg border border-blue-200">
+                      <Activity size={18} className="text-blue-700" />
+                    </div>
                     Total Tasks
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-gray-900 mb-1">{totalTasks.toLocaleString()}</div>
-                  <div className="text-xs text-gray-600">Completed Today</div>
+                  <div className="text-xs text-gray-700 font-medium">Completed Today</div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <TrendingUp size={18} className="text-green-600" />
+              <Card className="relative bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+                <CardHeader className="pb-3 bg-white/50">
+                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <div className="p-2 bg-green-100 rounded-lg border border-green-200">
+                      <TrendingUp size={18} className="text-green-700" />
+                    </div>
                     Success Rate
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-gray-900 mb-1">{avgSuccessRate.toFixed(1)}%</div>
-                  <div className="text-xs text-gray-600">Average Across Agents</div>
+                  <div className="text-xs text-gray-700 font-medium">Average Across Agents</div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Shield size={18} className="text-orange-600" />
+              <Card className="relative bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300 shadow-lg overflow-hidden hover:shadow-xl transition-all">
+                <CardHeader className="pb-3 bg-white/50">
+                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <div className="p-2 bg-orange-100 rounded-lg border border-orange-200">
+                      <Shield size={18} className="text-orange-700" />
+                    </div>
                     UEBA Status
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600 mb-1">Secure</div>
-                  <div className="text-xs text-gray-600">0 Anomalies Detected</div>
+                  <div className="text-2xl font-bold text-green-700 mb-1">Secure</div>
+                  <div className="text-xs text-gray-700 font-medium">0 Anomalies Detected</div>
                 </CardContent>
               </Card>
             </div>
@@ -326,20 +336,38 @@ function AgenticAIContent() {
                   return (
                     <Card
                       key={agent.id}
-                      className={`cursor-pointer transition-all hover:shadow-md ${
-                        selectedAgent === agent.id ? "ring-2 ring-blue-500" : ""
-                      }`}
+                      className={`relative cursor-pointer transition-all hover:shadow-lg overflow-hidden ${
+                        selectedAgent === agent.id ? "ring-2 ring-blue-500 shadow-lg" : ""
+                      } bg-white border border-gray-200`}
                       onClick={() => setSelectedAgent(selectedAgent === agent.id ? null : agent.id)}
                     >
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                            <div className={`p-2 rounded-lg bg-${agent.color}-100`}>
-                              <Icon size={16} className={`text-${agent.color}-600`} />
+                            <div className={`p-2 rounded-lg border ${
+                              agent.color === "blue" ? "bg-blue-100 border-blue-200" :
+                              agent.color === "purple" ? "bg-purple-100 border-purple-200" :
+                              agent.color === "green" ? "bg-green-100 border-green-200" :
+                              agent.color === "orange" ? "bg-orange-100 border-orange-200" :
+                              agent.color === "teal" ? "bg-teal-100 border-teal-200" :
+                              "bg-indigo-100 border-indigo-200"
+                            }`}>
+                              <Icon size={16} className={
+                                agent.color === "blue" ? "text-blue-700" :
+                                agent.color === "purple" ? "text-purple-700" :
+                                agent.color === "green" ? "text-green-700" :
+                                agent.color === "orange" ? "text-orange-700" :
+                                agent.color === "teal" ? "text-teal-700" :
+                                "text-indigo-700"
+                              } />
                             </div>
                             {agent.name}
                           </CardTitle>
-                          <Badge className={`text-xs ${getStatusColor(agent.status)}`}>
+                          <Badge className={`text-xs border ${
+                            agent.status === "active" ? "bg-green-100 text-green-700 border-green-300" :
+                            agent.status === "idle" ? "bg-gray-100 text-gray-700 border-gray-300" :
+                            "bg-red-100 text-red-700 border-red-300"
+                          }`}>
                             {agent.status}
                           </Badge>
                         </div>
@@ -373,45 +401,73 @@ function AgenticAIContent() {
 
             {/* Real-time Activity Log */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="lg:col-span-2">
-                <CardHeader className="flex flex-row items-center justify-between pb-3">
-                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Activity size={20} className="text-blue-600" />
-                    Real-time Agent Activity Log
-                  </CardTitle>
-                  <Button variant="outline" size="sm">
+              <Card className="lg:col-span-2 relative bg-white border border-gray-200 shadow-sm overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-gray-200 bg-gray-50/50">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Activity size={20} className="text-blue-700" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-semibold text-gray-900">Real-time Agent Activity Log</CardTitle>
+                      <p className="text-xs text-gray-500 mt-0.5">Live monitoring of agent operations</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400">
                     <RotateCcw size={14} className="mr-2" />
                     Clear Log
                   </Button>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                <CardContent className="p-4">
+                  <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {activities.map((activity) => (
                       <div
                         key={activity.id}
-                        className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
+                        className="group flex items-start gap-3 p-3.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50/80 hover:border-gray-300 hover:shadow-md transition-all duration-200"
                       >
-                        <div className={`p-1.5 rounded-lg ${getActivityStatusColor(activity.status)}`}>
-                          {activity.status === "success" && <CheckCircle2 size={14} />}
-                          {activity.status === "warning" && <AlertCircle size={14} />}
-                          {activity.status === "error" && <AlertCircle size={14} />}
+                        <div className={`p-2.5 rounded-lg border-2 flex-shrink-0 shadow-sm ${
+                          activity.status === "success" ? "bg-green-50 text-green-700 border-green-300" :
+                          activity.status === "warning" ? "bg-yellow-50 text-yellow-700 border-yellow-300" :
+                          "bg-red-50 text-red-700 border-red-300"
+                        }`}>
+                          {activity.status === "success" && <CheckCircle2 size={18} />}
+                          {activity.status === "warning" && <AlertCircle size={18} />}
+                          {activity.status === "error" && <AlertCircle size={18} />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                             <span className="text-sm font-semibold text-gray-900">{activity.agent}</span>
-                            <Badge className={`text-xs ${getActivityStatusColor(activity.status)}`}>
+                            <Badge className={`text-xs border font-medium px-2 py-0.5 ${
+                              activity.status === "success" ? "bg-green-50 text-green-700 border-green-300" :
+                              activity.status === "warning" ? "bg-yellow-50 text-yellow-700 border-yellow-300" :
+                              "bg-red-50 text-red-700 border-red-300"
+                            }`}>
                               {activity.status}
                             </Badge>
-                            <span className="text-xs text-gray-500 ml-auto">{activity.timestamp}</span>
+                            <span className="text-xs text-gray-500 ml-auto font-medium flex items-center gap-1">
+                              <Clock size={12} />
+                              {activity.timestamp}
+                            </span>
                           </div>
-                          <p className="text-sm text-gray-700 mb-1">{activity.action}</p>
-                          <p className="text-xs text-gray-500">{activity.details}</p>
+                          <p className="text-sm font-semibold text-gray-900 mb-1.5">{activity.action}</p>
+                          <p className="text-xs text-gray-600 leading-relaxed">{activity.details}</p>
                         </div>
                       </div>
                     ))}
+                    {activities.length === 0 && (
+                      <div className="text-center py-12 text-gray-400">
+                        <Activity size={40} className="mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">No activity logs yet</p>
+                        <p className="text-xs mt-1">Agent activities will appear here in real-time</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* AI Control Centre - 8x8 Grid */}
+            <div className="mt-6">
+              <AIControlCentre />
             </div>
 
             {/* Learning Loop Metrics */}
@@ -420,8 +476,8 @@ function AgenticAIContent() {
             </div>
 
             {/* Override Controls */}
-            <Card className="mt-6 border-orange-200 bg-orange-50/30">
-              <CardHeader>
+            <Card className="mt-6 relative bg-white border border-gray-200 shadow-sm overflow-hidden">
+              <CardHeader className="border-b border-gray-200">
                 <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <Settings size={20} className="text-orange-600" />
                   Manager Override Controls
@@ -429,15 +485,15 @@ function AgenticAIContent() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button variant="outline" className="justify-start">
+                  <Button variant="outline" className="justify-start border-gray-300 text-gray-700 hover:bg-gray-100">
                     <Pause size={16} className="mr-2" />
                     Pause All Agents
                   </Button>
-                  <Button variant="outline" className="justify-start">
+                  <Button variant="outline" className="justify-start border-gray-300 text-gray-700 hover:bg-gray-100">
                     <Zap size={16} className="mr-2" />
                     Force Task Reassignment
                   </Button>
-                  <Button variant="outline" className="justify-start">
+                  <Button variant="outline" className="justify-start border-gray-300 text-gray-700 hover:bg-gray-100">
                     <Shield size={16} className="mr-2" />
                     Trigger UEBA Audit
                   </Button>
