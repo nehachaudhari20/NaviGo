@@ -28,14 +28,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
-          cache-dependency-path: vehicle-care-2/pnpm-lock.yaml
+          cache-dependency-path: frontend/vehicle-care-2/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: ./vehicle-care-2
+        working-directory: ./frontend/vehicle-care-2
         run: pnpm install --frozen-lockfile
 
       - name: Build Next.js project
-        working-directory: ./vehicle-care-2
+        working-directory: ./frontend/vehicle-care-2
         run: pnpm run build
         env:
           NODE_ENV: production
@@ -55,4 +55,5 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           channelId: live
           projectId: navigo-27206
+          firebaseJsonPath: deployment/firebase.json
 
