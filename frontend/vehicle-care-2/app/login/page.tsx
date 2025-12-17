@@ -25,14 +25,14 @@ export default function LoginPage() {
     // If already authenticated, redirect to appropriate dashboard based on persona
     if (isAuthenticated && user) {
       const timer = setTimeout(() => {
-        if (user.persona === "customer") {
+        if (user.persona === "customer" && window.location.pathname !== "/") {
           window.location.href = "/"
-        } else if (user.persona === "service") {
+        } else if (user.persona === "service" && window.location.pathname !== "/service-center") {
           window.location.href = "/service-center"
-        } else if (user.persona === "manufacturer") {
+        } else if (user.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
           window.location.href = "/manufacturer"
         }
-      }, 100)
+      }, 500)
       return () => clearTimeout(timer)
     }
   }, [isAuthenticated, user, isInitialized, router])

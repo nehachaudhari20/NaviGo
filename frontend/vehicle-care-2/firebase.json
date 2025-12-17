@@ -8,10 +8,6 @@
     ],
     "rewrites": [
       {
-        "source": "!/_next/**",
-        "destination": "/index.html"
-      },
-      {
         "source": "**",
         "destination": "/index.html"
       }
@@ -27,6 +23,8 @@
         ]
       }
     ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
   }
 }
-

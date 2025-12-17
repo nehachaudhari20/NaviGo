@@ -31,22 +31,24 @@ function DashboardContent() {
     if (!isAuthenticated) {
       // Use setTimeout to prevent redirect loop
       const timer = setTimeout(() => {
-        window.location.href = "/login"
-      }, 100)
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login"
+        }
+      }, 500)
       return () => clearTimeout(timer)
     }
     
     // Redirect if not service center persona
     if (user?.persona !== "service") {
       const timer = setTimeout(() => {
-        if (user?.persona === "customer") {
+        if (user?.persona === "customer" && window.location.pathname !== "/") {
           window.location.href = "/"
-        } else if (user?.persona === "manufacturer") {
+        } else if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
           window.location.href = "/manufacturer"
-        } else {
+        } else if (!user?.persona && window.location.pathname !== "/login") {
           window.location.href = "/login"
         }
-      }, 100)
+      }, 500)
       return () => clearTimeout(timer)
     }
   }, [isAuthenticated, user, isInitialized, router])
