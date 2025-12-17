@@ -36,7 +36,13 @@ export default function DashboardPage() {
   }, [isAuthenticated, user, router])
 
   if (!isAuthenticated || user?.persona !== "customer") {
-    return null
+    return (
+      <div className="flex h-screen bg-black items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-300">Loading...</p>
+        </div>
+      </div>
+    )
   }
   return (
     <div className="flex h-screen bg-black text-slate-100">

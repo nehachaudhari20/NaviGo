@@ -34,7 +34,13 @@ export default function ManufacturerPage() {
   }, [isAuthenticated, user, router])
 
   if (!isAuthenticated || user?.persona !== "manufacturer") {
-    return null
+    return (
+      <div className="flex h-screen bg-gray-50 items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -7,6 +7,7 @@ import { setAnalyticsUserId, initAnalytics } from "@/lib/firebase-analytics"
 interface AuthContextType {
   isAuthenticated: boolean
   user: { email: string; persona: string } | null
+  isInitialized: boolean
   login: (email: string, persona: string, rememberMe?: boolean) => void
   logout: () => void
 }
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState<{ email: string; persona: string } | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
     // Initialize Firebase Analytics
@@ -28,22 +30,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const storedAuth = localStorage.getItem("navigo_auth")
       const storedUser = localStorage.getItem("navigo_user")
       if (storedAuth === "true" && storedUser) {
-        const userData = JSON.parse(storedUser)
-        setIsAuthenticated(true)
-        setUser(userData)
-        
-        // Track session restoration
-        uebaService.trackUserBehavior({
-          action: 'session_restored',
-          userId: userData.email,
-          metadata: {
-            persona: userData.persona,
-            timestamp: new Date().toISOString(),
-          }
-        })
-        
-        setAnalyticsUserId(userData.email)
+        try {
+          const userData = JSON.parse(storedUser)
+          setIsAuthenticated(true)
+          setUser(userData)
+          
+          // Track session restoration
+          uebaService.trackUserBehavior({
+            action: 'session_restored',
+            userId: userData.email,
+            metadata: {
+              persona: userData.persona,
+              timestamp: new Date().toISOString(),
+            }
+          })
+          
+          setAnalyticsUserId(userData.email)
+        } catch (error) {
+          console.error("Error parsing stored user data:", error)
+          localStorage.removeItem("navigo_auth")
+          localStorage.removeItem("navigo_user")
+        }
       }
+      setIsInitialized(true)
+    } else {
+      // Server-side: mark as initialized immediately
+      setIsInitialized(true)
     }
   }, [])
 
@@ -89,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, isInitialized, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
