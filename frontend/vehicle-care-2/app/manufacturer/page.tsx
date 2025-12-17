@@ -21,19 +21,24 @@ export default function ManufacturerPage() {
 
     // Redirect if not authenticated
     if (!isAuthenticated) {
-      window.location.href = "/login"
-      return
+      const timer = setTimeout(() => {
+        window.location.href = "/login"
+      }, 100)
+      return () => clearTimeout(timer)
     }
     
     // Redirect if not manufacturer persona
     if (user?.persona !== "manufacturer") {
-      if (user?.persona === "customer") {
-        window.location.href = "/"
-      } else if (user?.persona === "service") {
-        window.location.href = "/service-center"
-      } else {
-        window.location.href = "/login"
-      }
+      const timer = setTimeout(() => {
+        if (user?.persona === "customer") {
+          window.location.href = "/"
+        } else if (user?.persona === "service") {
+          window.location.href = "/service-center"
+        } else {
+          window.location.href = "/login"
+        }
+      }, 100)
+      return () => clearTimeout(timer)
     }
   }, [isAuthenticated, user, isInitialized, router])
 

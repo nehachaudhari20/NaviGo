@@ -29,19 +29,25 @@ function DashboardContent() {
 
     // Redirect if not authenticated
     if (!isAuthenticated) {
-      window.location.href = "/login"
-      return
+      // Use setTimeout to prevent redirect loop
+      const timer = setTimeout(() => {
+        window.location.href = "/login"
+      }, 100)
+      return () => clearTimeout(timer)
     }
     
     // Redirect if not service center persona
     if (user?.persona !== "service") {
-      if (user?.persona === "customer") {
-        window.location.href = "/"
-      } else if (user?.persona === "manufacturer") {
-        window.location.href = "/manufacturer"
-      } else {
-        window.location.href = "/login"
-      }
+      const timer = setTimeout(() => {
+        if (user?.persona === "customer") {
+          window.location.href = "/"
+        } else if (user?.persona === "manufacturer") {
+          window.location.href = "/manufacturer"
+        } else {
+          window.location.href = "/login"
+        }
+      }, 100)
+      return () => clearTimeout(timer)
     }
   }, [isAuthenticated, user, isInitialized, router])
 

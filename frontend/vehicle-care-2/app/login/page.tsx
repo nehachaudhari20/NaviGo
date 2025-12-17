@@ -11,7 +11,7 @@ type Persona = "customer" | "service" | "manufacturer"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, isAuthenticated, user } = useAuth()
+  const { login, isAuthenticated, user, isInitialized } = useAuth()
   const [selectedPersona, setSelectedPersona] = useState<Persona>("customer")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -19,17 +19,23 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
 
   useEffect(() => {
+    // Wait for auth to initialize
+    if (!isInitialized) return
+
     // If already authenticated, redirect to appropriate dashboard based on persona
     if (isAuthenticated && user) {
-      if (user.persona === "customer") {
-        router.push("/")
-      } else if (user.persona === "service") {
-        router.push("/service-center")
-      } else if (user.persona === "manufacturer") {
-        router.push("/manufacturer")
-      }
+      const timer = setTimeout(() => {
+        if (user.persona === "customer") {
+          window.location.href = "/"
+        } else if (user.persona === "service") {
+          window.location.href = "/service-center"
+        } else if (user.persona === "manufacturer") {
+          window.location.href = "/manufacturer"
+        }
+      }, 100)
+      return () => clearTimeout(timer)
     }
-  }, [isAuthenticated, user, router])
+  }, [isAuthenticated, user, isInitialized, router])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,16 +51,36 @@ export default function LoginPage() {
     
     // Navigate based on persona
     if (selectedPersona === "customer") {
-      router.push("/")
+      window.location.href = "/"
     } else if (selectedPersona === "service") {
-      router.push("/service-center")
+      window.location.href = "/service-center"
     } else {
-      router.push("/manufacturer")
+      window.location.href = "/manufacturer"
     }
   }
 
+  // Show loading while auth is initializing
+  if (!isInitialized) {
+    return (
+      <div className="flex h-screen bg-white items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If authenticated, show loading while redirecting
   if (isAuthenticated) {
-    return null
+    return (
+      <div className="flex h-screen bg-white items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   const personas = [
@@ -312,4 +338,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
 

@@ -24,18 +24,24 @@ export default function DashboardPage() {
 
     // Redirect if not authenticated
     if (!isAuthenticated) {
-      window.location.href = "/login"
-      return
+      const timer = setTimeout(() => {
+        window.location.href = "/login"
+      }, 100)
+      return () => clearTimeout(timer)
     }
     
     // Redirect based on persona if not customer
     if (user?.persona === "service") {
-      window.location.href = "/service-center"
-      return
+      const timer = setTimeout(() => {
+        window.location.href = "/service-center"
+      }, 100)
+      return () => clearTimeout(timer)
     }
     if (user?.persona === "manufacturer") {
-      window.location.href = "/manufacturer"
-      return
+      const timer = setTimeout(() => {
+        window.location.href = "/manufacturer"
+      }, 100)
+      return () => clearTimeout(timer)
     }
   }, [isAuthenticated, user, isInitialized, router])
 
