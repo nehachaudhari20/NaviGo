@@ -19,34 +19,51 @@ import DeliveryOverview from "@/components/service-center/delivery-overview"
 import CostDetails from "@/components/service-center/cost-details"
 
 function DashboardContent() {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isInitialized } = useAuth()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
+    // Wait for auth to initialize
+    if (!isInitialized) return
+
+    // Redirect if not authenticated
     if (!isAuthenticated) {
-      router.push("/login")
+      window.location.href = "/login"
       return
     }
     
     // Redirect if not service center persona
     if (user?.persona !== "service") {
       if (user?.persona === "customer") {
-        router.push("/")
+        window.location.href = "/"
       } else if (user?.persona === "manufacturer") {
-        router.push("/manufacturer")
+        window.location.href = "/manufacturer"
       } else {
-        router.push("/login")
+        window.location.href = "/login"
       }
     }
-  }, [isAuthenticated, user, router])
+  }, [isAuthenticated, user, isInitialized, router])
 
-  if (!isAuthenticated || user?.persona !== "service") {
+  // Show loading while auth is initializing
+  if (!isInitialized) {
     return (
       <div className="flex h-screen bg-black items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading while redirecting
+  if (!isAuthenticated || user?.persona !== "service") {
+    return (
+      <div className="flex h-screen bg-black items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Redirecting...</p>
         </div>
       </div>
     )

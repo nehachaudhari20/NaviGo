@@ -15,32 +15,49 @@ import HealthSummary from "@/components/health-summary"
 import TelemetryUpload from "@/components/telemetry-upload"
 
 export default function DashboardPage() {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isInitialized } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
+    // Wait for auth to initialize
+    if (!isInitialized) return
+
+    // Redirect if not authenticated
     if (!isAuthenticated) {
-      router.push("/login")
+      window.location.href = "/login"
       return
     }
     
     // Redirect based on persona if not customer
     if (user?.persona === "service") {
-      router.push("/service-center")
+      window.location.href = "/service-center"
       return
     }
     if (user?.persona === "manufacturer") {
-      router.push("/manufacturer")
+      window.location.href = "/manufacturer"
       return
     }
-  }, [isAuthenticated, user, router])
+  }, [isAuthenticated, user, isInitialized, router])
 
-  if (!isAuthenticated || user?.persona !== "customer") {
+  // Show loading while auth is initializing
+  if (!isInitialized) {
     return (
       <div className="flex h-screen bg-black items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading while redirecting
+  if (!isAuthenticated || user?.persona !== "customer") {
+    return (
+      <div className="flex h-screen bg-black items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Redirecting...</p>
         </div>
       </div>
     )

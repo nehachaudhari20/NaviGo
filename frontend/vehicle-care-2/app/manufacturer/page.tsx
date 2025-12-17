@@ -12,33 +12,50 @@ import NotificationsPanel from "@/components/manufacturer/notifications-panel"
 import ComplianceDashboard from "@/components/manufacturer/compliance-dashboard"
 
 export default function ManufacturerPage() {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isInitialized } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
+    // Wait for auth to initialize
+    if (!isInitialized) return
+
+    // Redirect if not authenticated
     if (!isAuthenticated) {
-      router.push("/login")
+      window.location.href = "/login"
       return
     }
     
     // Redirect if not manufacturer persona
     if (user?.persona !== "manufacturer") {
       if (user?.persona === "customer") {
-        router.push("/")
+        window.location.href = "/"
       } else if (user?.persona === "service") {
-        router.push("/service-center")
+        window.location.href = "/service-center"
       } else {
-        router.push("/login")
+        window.location.href = "/login"
       }
     }
-  }, [isAuthenticated, user, router])
+  }, [isAuthenticated, user, isInitialized, router])
 
-  if (!isAuthenticated || user?.persona !== "manufacturer") {
+  // Show loading while auth is initializing
+  if (!isInitialized) {
     return (
       <div className="flex h-screen bg-black items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading while redirecting
+  if (!isAuthenticated || user?.persona !== "manufacturer") {
+    return (
+      <div className="flex h-screen bg-black items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Redirecting...</p>
         </div>
       </div>
     )
