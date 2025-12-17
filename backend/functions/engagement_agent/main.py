@@ -8,15 +8,35 @@ import json
 import os
 import uuid
 import re
+import time
+import random
 from datetime import datetime
 from google.cloud import pubsub_v1, firestore, bigquery
 import functions_framework
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
+from google.api_core import exceptions
 
 # Vertex AI configuration
-PROJECT_ID = os.getenv("PROJECT_ID", "navigo-27206")
-LOCATION = os.getenv("LOCATION", "us-central1")
+# Read and validate environment variables
+PROJECT_ID_RAW = os.getenv("PROJECT_ID", "navigo-27206")
+LOCATION_RAW = os.getenv("LOCATION", "us-central1")
+
+# Clean and validate - remove any extra text that might have been concatenated
+PROJECT_ID = PROJECT_ID_RAW.strip().split()[0]  # Take only first word (in case "LOCATION=..." was appended)
+LOCATION = LOCATION_RAW.strip().split()[0]  # Take only first word
+
+# Additional validation - ensure PROJECT_ID doesn't contain "LOCATION"
+if "LOCATION" in PROJECT_ID.upper():
+    # Extract just the project ID part
+    PROJECT_ID = PROJECT_ID.split("LOCATION")[0].strip()
+if "=" in PROJECT_ID:
+    # If there's an equals sign, take only the part before it
+    PROJECT_ID = PROJECT_ID.split("=")[0].strip()
+
+# Debug logging (will be visible in Cloud Logs)
+print(f"DEBUG: PROJECT_ID_RAW={PROJECT_ID_RAW}, PROJECT_ID={PROJECT_ID}")
+print(f"DEBUG: LOCATION_RAW={LOCATION_RAW}, LOCATION={LOCATION}")
 
 # Pub/Sub configuration
 ENGAGEMENT_TOPIC_NAME = "navigo-engagement-complete"
@@ -158,16 +178,41 @@ def engagement_agent(cloud_event):
     
     try:
         # 1. Parse Pub/Sub message
+        # For 2nd gen Cloud Functions, cloud_event.data can be:
+        # - A string (JSON string)
+        # - A dict (already parsed)
+        # - Base64 encoded in a "message" wrapper (legacy format)
+        
+        message_data = None
+        
         if isinstance(cloud_event.data, str):
-            message_data = json.loads(cloud_event.data)
+            try:
+                message_data = json.loads(cloud_event.data)
+            except json.JSONDecodeError:
+                # Might be base64 encoded
+                try:
+                    import base64
+                    decoded = base64.b64decode(cloud_event.data).decode("utf-8")
+                    message_data = json.loads(decoded)
+                except:
+                    print(f"Failed to parse cloud_event.data as JSON or base64: {cloud_event.data[:100]}")
+                    raise
+        elif isinstance(cloud_event.data, dict):
+            message_data = cloud_event.data
         else:
             message_data = cloud_event.data
         
-        # Handle base64 encoded data
-        if "message" in message_data and "data" in message_data["message"]:
+        # Handle legacy Pub/Sub message format (wrapped in "message" object)
+        if isinstance(message_data, dict) and "message" in message_data and "data" in message_data["message"]:
             import base64
-            decoded = base64.b64decode(message_data["message"]["data"]).decode("utf-8")
-            message_data = json.loads(decoded)
+            try:
+                decoded = base64.b64decode(message_data["message"]["data"]).decode("utf-8")
+                if decoded:  # Only parse if decoded string is not empty
+                    message_data = json.loads(decoded)
+            except Exception as e:
+                print(f"Error decoding base64 message data: {e}")
+                # Try to use message_data as-is if decoding fails
+                pass
         
         scheduling_id = message_data.get("scheduling_id")
         rca_id = message_data.get("rca_id")
@@ -180,8 +225,20 @@ def engagement_agent(cloud_event):
             print("Missing scheduling_id or vehicle_id in message")
             return {"status": "error", "error": "Missing required fields"}
         
-        # 2. Fetch vehicle data to get customer phone and name
+        # 2. Check for existing engagement to prevent duplicate processing
         db = firestore.Client()
+        
+        # Check if engagement already exists for this scheduling_id (prevent duplicate engagement)
+        existing_engagement = list(db.collection("engagement_cases")
+            .where("scheduling_id", "==", scheduling_id)
+            .limit(1).stream())
+        
+        if existing_engagement:
+            existing_engagement_id = existing_engagement[0].id
+            print(f"Engagement already exists for scheduling {scheduling_id} - engagement_id: {existing_engagement_id}. Skipping.")
+            return {"status": "skipped", "message": "Engagement already exists", "engagement_id": existing_engagement_id}
+        
+        # 3. Fetch vehicle data to get customer phone and name
         vehicle_ref = db.collection("vehicles").document(vehicle_id)
         vehicle_doc = vehicle_ref.get()
         
@@ -193,7 +250,7 @@ def engagement_agent(cloud_event):
         customer_phone = vehicle_data.get("owner_phone") or vehicle_data.get("phone")
         customer_name = vehicle_data.get("owner_name") or vehicle_data.get("name") or "Customer"
         
-        # 3. Fetch RCA case to get root cause and recommended action
+        # 4. Fetch RCA case to get root cause and recommended action
         rca_ref = db.collection("rca_cases").document(rca_id)
         rca_doc = rca_ref.get()
         
@@ -209,7 +266,7 @@ def engagement_agent(cloud_event):
         best_slot = best_slot or message_data.get("best_slot")
         service_center = service_center or message_data.get("service_center")
         
-        # 4. Prepare input for Gemini
+        # 5. Prepare input for Gemini
         input_data = {
             "vehicle_id": vehicle_id,
             "root_cause": root_cause,
@@ -218,16 +275,61 @@ def engagement_agent(cloud_event):
             "service_center": service_center
         }
         
-        # 5. Initialize Vertex AI and call Gemini 2.5 Flash
+        # 6. Initialize Vertex AI and call Gemini 2.5 Flash
+        # Validate PROJECT_ID and LOCATION before initialization
+        if not PROJECT_ID or " " in PROJECT_ID or "=" in PROJECT_ID:
+            raise ValueError(f"Invalid PROJECT_ID: '{PROJECT_ID}'. Must be a single word without spaces or equals signs.")
+        if not LOCATION or " " in LOCATION or "=" in LOCATION:
+            raise ValueError(f"Invalid LOCATION: '{LOCATION}'. Must be a single word without spaces or equals signs.")
+        
+        print(f"Initializing Vertex AI with project={PROJECT_ID}, location={LOCATION}")
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         model = GenerativeModel("gemini-2.5-flash")
         
         prompt = f"{SYSTEM_PROMPT}\n\nGenerate customer engagement for this vehicle:\n{json.dumps(input_data, default=str, indent=2)}\n\nReturn ONLY the JSON response matching the output format specified above."
         
-        response = model.generate_content(prompt)
-        response_text = response.text
+        # Add longer random delay (0-10 seconds) to spread out concurrent requests and reduce rate limiting
+        jitter = random.uniform(0, 10)
+        print(f"Adding {jitter:.2f}s jitter delay to spread out requests...")
+        time.sleep(jitter)
         
-        # 6. Parse Gemini response
+        # Additional check: Before calling Gemini, verify no duplicate engagement was created during jitter delay
+        quick_check = list(db.collection("engagement_cases")
+            .where("scheduling_id", "==", scheduling_id)
+            .limit(1).stream())
+        
+        if quick_check:
+            existing_engagement_id = quick_check[0].id
+            print(f"Skipping Gemini call for scheduling {scheduling_id} - duplicate engagement {existing_engagement_id} detected after jitter delay")
+            return {"status": "skipped", "message": "Duplicate detected after jitter", "engagement_id": existing_engagement_id}
+        
+        # Call Gemini with retry logic for rate limiting (429 errors)
+        max_retries = 5
+        retry_delay = 2  # Start with 2 seconds
+        response = None
+        response_text = None
+        
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_content(prompt)
+                response_text = response.text
+                break  # Success, exit retry loop
+            except exceptions.ResourceExhausted as e:
+                if attempt < max_retries - 1:
+                    # Exponential backoff with jitter: 2s, 4s, 8s, 16s, 32s
+                    wait_time = retry_delay * (2 ** attempt) + random.uniform(0, 1)
+                    print(f"Rate limit hit (429), retrying in {wait_time:.2f}s (attempt {attempt + 1}/{max_retries})...")
+                    time.sleep(wait_time)
+                else:
+                    # Last attempt failed
+                    print(f"Rate limit error after {max_retries} attempts: {str(e)}")
+                    raise
+            except Exception as e:
+                # For other errors, don't retry
+                print(f"Error calling Gemini: {str(e)}")
+                raise
+        
+        # 7. Parse Gemini response
         try:
             result = extract_json_from_response(response_text)
         except Exception as e:
@@ -235,13 +337,13 @@ def engagement_agent(cloud_event):
             print(f"Response text: {response_text}")
             raise ValueError(f"Invalid JSON response from Gemini: {e}")
         
-        # 7. Validate result matches schema
+        # 8. Validate result matches schema
         if result.get("vehicle_id") != vehicle_id:
             result["vehicle_id"] = vehicle_id
         
         engagement_id = f"engagement_{uuid.uuid4().hex[:10]}"
         
-        # 8. Prepare engagement data for Firestore (include customer info)
+        # 9. Prepare engagement data for Firestore (include customer info)
         engagement_data = {
             "engagement_id": engagement_id,
             "scheduling_id": scheduling_id,
@@ -257,15 +359,47 @@ def engagement_agent(cloud_event):
             "created_at": firestore.SERVER_TIMESTAMP
         }
         
-        # 9. Store in Firestore
+        # Final check: Don't create duplicate engagement if one was created while we were processing
+        existing_final = list(db.collection("engagement_cases")
+            .where("scheduling_id", "==", scheduling_id)
+            .limit(1).stream())
+        
+        if existing_final:
+            existing_engagement_id = existing_final[0].id
+            existing_engagement_data = existing_final[0].to_dict()
+            existing_created_at = existing_engagement_data.get("created_at")
+            
+            # Check if the existing engagement is very recent (within last 30 seconds)
+            try:
+                from datetime import timezone
+                if isinstance(existing_created_at, datetime):
+                    existing_dt = existing_created_at
+                    if existing_dt.tzinfo is None:
+                        existing_dt = existing_dt.replace(tzinfo=timezone.utc)
+                    time_diff = (datetime.now(timezone.utc) - existing_dt).total_seconds()
+                    if time_diff < 30:  # Only skip if very recent (within 30 seconds)
+                        print(f"Duplicate engagement detected - engagement {existing_engagement_id} created {time_diff:.1f}s ago. Skipping.")
+                        return {"status": "skipped", "message": "Duplicate engagement detected", "engagement_id": existing_engagement_id}
+                    else:
+                        print(f"Existing engagement {existing_engagement_id} is {time_diff:.1f}s old - allowing new engagement creation")
+                elif existing_created_at is firestore.SERVER_TIMESTAMP or (hasattr(existing_created_at, "__class__") and "Sentinel" in str(type(existing_created_at))):
+                    # Sentinel means just created - skip
+                    print(f"Duplicate engagement detected - engagement {existing_engagement_id} was just created. Skipping.")
+                    return {"status": "skipped", "message": "Duplicate engagement detected", "engagement_id": existing_engagement_id}
+            except:
+                # If timestamp check fails, skip to be safe
+                print(f"Duplicate engagement detected - engagement {existing_engagement_id} exists (timestamp check failed). Skipping.")
+                return {"status": "skipped", "message": "Duplicate engagement detected", "engagement_id": existing_engagement_id}
+        
+        # 10. Store in Firestore
         db.collection("engagement_cases").document(engagement_id).set(engagement_data)
         print(f"Created engagement case {engagement_id} for vehicle {vehicle_id}")
         
-        # 10. Update scheduling case status
+        # 11. Update scheduling case status
         scheduling_ref = db.collection("scheduling_cases").document(scheduling_id)
         scheduling_ref.update({"status": "engagement_complete"})
         
-        # 11. If booking confirmed, create booking record
+        # 12. If booking confirmed, create booking record
         if result.get("customer_decision") == "confirmed" and result.get("booking_id"):
             booking_data = {
                 "booking_id": result.get("booking_id"),
@@ -279,18 +413,20 @@ def engagement_agent(cloud_event):
             db.collection("bookings").document(result.get("booking_id")).set(booking_data)
             print(f"Created booking {result.get('booking_id')} for vehicle {vehicle_id}")
         
-        # 12. Prepare BigQuery row
-        bq_row = prepare_bigquery_row(engagement_data)
-        
-        # 13. Sync to BigQuery
-        bq_client = bigquery.Client()
-        table_ref = bq_client.dataset(DATASET_ID).table(TABLE_ID)
-        errors = bq_client.insert_rows_json(table_ref, [bq_row])
-        
-        if errors:
-            print(f"BigQuery insert errors: {errors}")
-        else:
-            print(f"Synced engagement case {engagement_id} to BigQuery")
+        # 13. Prepare BigQuery row and sync (non-blocking - don't fail if BigQuery fails)
+        try:
+            bq_row = prepare_bigquery_row(engagement_data)
+            bq_client = bigquery.Client()
+            table_ref = bq_client.dataset(DATASET_ID).table(TABLE_ID)
+            errors = bq_client.insert_rows_json(table_ref, [bq_row])
+            
+            if errors:
+                print(f"BigQuery insert errors: {errors}")
+            else:
+                print(f"Synced engagement case {engagement_id} to BigQuery")
+        except Exception as bq_error:
+            # Don't fail the entire function if BigQuery fails (table might not exist yet)
+            print(f"BigQuery sync failed (non-blocking): {str(bq_error)}. Continuing with Pub/Sub publish...")
         
         # 14. Publish to engagement-complete topic
         publisher = pubsub_v1.PublisherClient()
@@ -359,10 +495,22 @@ def prepare_bigquery_row(engagement_data: dict) -> dict:
         
         value = engagement_data[key]
         
-        # Handle Firestore SERVER_TIMESTAMP
-        if key == "created_at" and hasattr(value, "timestamp"):
-            from datetime import timezone
-            bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
+        # Handle Firestore SERVER_TIMESTAMP (Sentinel object)
+        if key == "created_at":
+            # Check if it's a SERVER_TIMESTAMP Sentinel object
+            if value is firestore.SERVER_TIMESTAMP or (hasattr(value, "__class__") and "Sentinel" in str(type(value))):
+                from datetime import datetime, timezone
+                bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
+            elif hasattr(value, "timestamp"):
+                # Already a timestamp object
+                from datetime import timezone
+                bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
+            elif value is None:
+                # Skip None values
+                continue
+            else:
+                # Already a string or datetime
+                bq_row[bq_key] = value
         elif value is None:
             continue
         else:

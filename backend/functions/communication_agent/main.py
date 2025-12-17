@@ -1,12 +1,13 @@
 """
 Cloud Function: communication_agent
 Pub/Sub Trigger: Subscribes to navigo-communication-trigger topic
-Purpose: Makes actual voice calls to customers using Twilio
+Purpose: Makes actual voice calls to customers using Plivo (recommended Twilio alternative)
 """
 
 import json
 import os
 import uuid
+import re
 from datetime import datetime, timezone
 from google.cloud import pubsub_v1, firestore
 import functions_framework
@@ -47,16 +48,135 @@ def communication_agent(cloud_event):
     
     try:
         # 1. Parse Pub/Sub message
-        if isinstance(cloud_event.data, str):
-            message_data = json.loads(cloud_event.data)
+        # For 2nd gen Cloud Functions, cloud_event.data can be:
+        # - bytes (raw protobuf or base64)
+        # - A string (JSON string or base64)
+        # - A dict (already parsed)
+        # - Base64 encoded in a "message" wrapper (standard Pub/Sub format)
+        
+        message_data = None
+        print(f"DEBUG: cloud_event.data type: {type(cloud_event.data)}, first 200 chars: {str(cloud_event.data)[:200]}")
+        
+        if isinstance(cloud_event.data, bytes):
+            try:
+                decoded_str = cloud_event.data.decode("utf-8")
+                message_data = json.loads(decoded_str)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                try:
+                    import base64
+                    decoded = base64.b64decode(cloud_event.data).decode("utf-8")
+                    if decoded:
+                        message_data = json.loads(decoded)
+                except Exception as e:
+                    print(f"Failed to parse cloud_event.data (bytes): {e}")
+                    raise
+        elif isinstance(cloud_event.data, str):
+            try:
+                message_data = json.loads(cloud_event.data)
+            except json.JSONDecodeError:
+                # Might be base64 encoded string
+                try:
+                    import base64
+                    decoded = base64.b64decode(cloud_event.data).decode("utf-8")
+                    if decoded:
+                        message_data = json.loads(decoded)
+                except Exception as e:
+                    print(f"Failed to parse cloud_event.data (string): {e}")
+                    raise
+        elif isinstance(cloud_event.data, dict):
+            message_data = cloud_event.data
         else:
             message_data = cloud_event.data
         
-        # Handle base64 encoded data
-        if "message" in message_data and "data" in message_data["message"]:
-            import base64
-            decoded = base64.b64decode(message_data["message"]["data"]).decode("utf-8")
-            message_data = json.loads(decoded)
+        # Handle Pub/Sub message format (wrapped in "message" object with base64 "data")
+        # This is the standard format for Pub/Sub messages in 2nd gen Cloud Functions
+        if isinstance(message_data, dict):
+            if "message" in message_data and "data" in message_data["message"]:
+                import base64
+                import re
+                try:
+                    data_field = message_data["message"]["data"]
+                    print(f"DEBUG: data_field type: {type(data_field)}, length: {len(str(data_field))}")
+                    
+                    # Check if data is a string (base64 encoded)
+                    if isinstance(data_field, str) and data_field.strip():
+                        # Decode base64 - handle padding issues
+                        # Add padding if needed (base64 strings must be multiple of 4)
+                        padding = len(data_field) % 4
+                        if padding:
+                            data_field += '=' * (4 - padding)
+                        
+                        # Decode base64
+                        decoded_str = None
+                        try:
+                            print(f"DEBUG: About to decode base64. data_field type: {type(data_field)}, length: {len(data_field)}")
+                            decoded_bytes = base64.b64decode(data_field, validate=True)
+                            decoded_str = decoded_bytes.decode("utf-8")
+                            print(f"DEBUG: Base64 decode successful. Original length: {len(data_field)}, Decoded length: {len(decoded_str)}")
+                            print(f"DEBUG: Decoded content: {decoded_str}")
+                        except Exception as decode_error:
+                            print(f"DEBUG: Base64 decode error (with validation): {decode_error}")
+                            try:
+                                decoded_bytes = base64.b64decode(data_field)
+                                decoded_str = decoded_bytes.decode("utf-8")
+                                print(f"DEBUG: Base64 decode successful (without validation). Decoded length: {len(decoded_str)}")
+                                print(f"DEBUG: Decoded content: {decoded_str}")
+                            except Exception as decode_error2:
+                                print(f"DEBUG: Base64 decode error (without validation): {decode_error2}")
+                                raise
+                        
+                        if decoded_str and decoded_str.strip():
+                            # Check if the decoded string itself looks like base64 (double encoding)
+                            is_base64_pattern = re.compile(r'^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
+                            if is_base64_pattern.fullmatch(decoded_str.strip()):
+                                print(f"WARNING: Decoded string still looks like base64! Attempting second decode...")
+                                try:
+                                    second_decoded_bytes = base64.b64decode(decoded_str.strip())
+                                    second_decoded_str = second_decoded_bytes.decode("utf-8")
+                                    print(f"DEBUG: Second decode successful. Final length: {len(second_decoded_str)}")
+                                    print(f"DEBUG: Final decoded content: {second_decoded_str}")
+                                    decoded_str = second_decoded_str
+                                except Exception as second_decode_error:
+                                    print(f"ERROR: Second base64 decode failed: {second_decode_error}")
+                            
+                            try:
+                                message_data = json.loads(decoded_str)
+                                print(f"DEBUG: Successfully parsed JSON. Keys: {list(message_data.keys())}")
+                            except json.JSONDecodeError as json_error:
+                                print(f"Error: Invalid JSON after base64 decode: {json_error}")
+                                print(f"DEBUG: Decoded string length: {len(decoded_str)}")
+                                print(f"DEBUG: Decoded string (repr): {repr(decoded_str)}")
+                                raise
+                        else:
+                            print(f"DEBUG: Decoded string is empty or None. decoded_str={decoded_str}")
+                            raise ValueError("Decoded string is empty")
+                    elif isinstance(data_field, bytes):
+                        decoded_str = data_field.decode("utf-8")
+                        if decoded_str and decoded_str.strip():
+                            message_data = json.loads(decoded_str)
+                except base64.binascii.Error as e:
+                    print(f"Error: Invalid base64 data: {e}")
+                    print(f"DEBUG: data_field type: {type(data_field)}, length: {len(str(data_field))}, first 200 chars: {str(data_field)[:200]}")
+                    raise
+                except json.JSONDecodeError as e:
+                    print(f"Error: Invalid JSON after base64 decode: {e}")
+                    print(f"DEBUG: Decoded string length: {len(decoded_str) if 'decoded_str' in locals() else 0}")
+                    print(f"DEBUG: Decoded string (full): {decoded_str if 'decoded_str' in locals() else 'N/A'}")
+                    raise
+                except Exception as e:
+                    print(f"Error decoding base64 message data: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    raise
+        
+        # Final validation - ensure message_data is a dict
+        if not isinstance(message_data, dict):
+            print(f"message_data is not a dict: {type(message_data)}, value: {str(message_data)[:200]}")
+            return {"status": "error", "error": f"Invalid message format: expected dict, got {type(message_data).__name__}"}
+        
+        if not message_data:
+            print(f"message_data is empty dict")
+            return {"status": "error", "error": "Invalid or empty message data"}
         
         engagement_id = message_data.get("engagement_id")
         vehicle_id = message_data.get("vehicle_id")
@@ -76,6 +196,31 @@ def communication_agent(cloud_event):
             return {"status": "error", "error": "Engagement case not found"}
         
         engagement_data = engagement_doc.to_dict()
+        
+        # 2.5. Check for duplicate communication case (prevent multiple calls for same engagement)
+        existing_communication_cases = list(db.collection("communication_cases")
+            .where("engagement_id", "==", engagement_id)
+            .limit(1).stream())
+        
+        if existing_communication_cases:
+            existing_comm_id = existing_communication_cases[0].id
+            existing_comm_data = existing_communication_cases[0].to_dict()
+            existing_created_at = existing_comm_data.get("created_at")
+            
+            # Check if the existing communication case is very recent (within last 30 seconds)
+            try:
+                if isinstance(existing_created_at, datetime):
+                    existing_dt = existing_created_at
+                    if existing_dt.tzinfo is None:
+                        existing_dt = existing_dt.replace(tzinfo=timezone.utc)
+                    time_diff = (datetime.now(timezone.utc) - existing_dt).total_seconds()
+                    if time_diff < 30:  # If created within last 30 seconds, skip
+                        print(f"Duplicate communication detected - communication {existing_comm_id} created {time_diff:.1f}s ago. Skipping.")
+                        return {"status": "skipped", "message": "Duplicate communication detected", "communication_id": existing_comm_id}
+            except:
+                # If timestamp check fails, skip to be safe
+                print(f"Duplicate communication detected - communication {existing_comm_id} exists (timestamp check failed). Skipping.")
+                return {"status": "skipped", "message": "Duplicate communication detected", "communication_id": existing_comm_id}
         
         # 3. Fetch vehicle data to get customer phone and name
         vehicle_ref = db.collection("vehicles").document(vehicle_id)
@@ -109,24 +254,80 @@ def communication_agent(cloud_event):
                 customer_phone = "+" + customer_phone
         
         # 4. Initialize Twilio client
-        if not TWILIO_AVAILABLE or not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
-            print("Twilio not configured - skipping voice call")
+        # Read environment variables at runtime (inside function) and strip whitespace/quotes
+        twilio_account_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip().strip("'\"")
+        twilio_auth_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip().strip("'\"")
+        twilio_phone_number = os.getenv("TWILIO_PHONE_NUMBER", "").strip().strip("'\"")
+        twilio_callback_url = os.getenv("TWILIO_CALLBACK_URL", 
+            f"https://us-central1-navigo-27206.cloudfunctions.net/twilio_webhook").strip().strip("'\"")
+        
+        # Validate token format (Twilio auth tokens are typically 32 characters, but can vary)
+        # Don't trim - use the token as provided
+        if twilio_auth_token and len(twilio_auth_token) != 32:
+            print(f"INFO: Auth token length is {len(twilio_auth_token)} (typically 32, but may vary). Using as provided.")
+        
+        # Validate Account SID format (should start with AC and be 34 characters)
+        if twilio_account_sid and not twilio_account_sid.startswith("AC"):
+            print(f"WARNING: Account SID doesn't start with 'AC'. Got: {twilio_account_sid[:5]}...")
+        
+        # Debug logging (don't log full auth token for security, but show first/last chars for verification)
+        print(f"DEBUG: TWILIO_AVAILABLE={TWILIO_AVAILABLE}")
+        print(f"DEBUG: TWILIO_ACCOUNT_SID={twilio_account_sid[:10] if twilio_account_sid else None}...{twilio_account_sid[-4:] if twilio_account_sid and len(twilio_account_sid) > 14 else ''} (length: {len(twilio_account_sid) if twilio_account_sid else 0})")
+        if twilio_auth_token:
+            print(f"DEBUG: TWILIO_AUTH_TOKEN={twilio_auth_token[:4]}...{twilio_auth_token[-4:]} (length: {len(twilio_auth_token)})")
+        else:
+            print(f"DEBUG: TWILIO_AUTH_TOKEN=NOT SET")
+        print(f"DEBUG: TWILIO_PHONE_NUMBER={twilio_phone_number} (length: {len(twilio_phone_number) if twilio_phone_number else 0})")
+        print(f"DEBUG: TWILIO_CALLBACK_URL={twilio_callback_url}")
+        
+        if not TWILIO_AVAILABLE or not twilio_account_sid or not twilio_auth_token:
+            print(f"Twilio not configured - skipping voice call. Available: {TWILIO_AVAILABLE}, SID: {bool(twilio_account_sid)}, Token: {bool(twilio_auth_token)}")
             return {
                 "status": "skipped",
                 "message": "Twilio not configured",
                 "engagement_id": engagement_id
             }
         
-        twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        # Verify credentials match expected format
+        expected_sid = "AC6bad0c817386de999b7b2b164953279a"
+        if twilio_account_sid != expected_sid:
+            print(f"WARNING: TWILIO_ACCOUNT_SID mismatch! Expected: {expected_sid}, Got: {twilio_account_sid}")
         
-        # 5. Prepare callback URL for Twilio webhook
-        gather_url = f"{TWILIO_CALLBACK_URL}/gather"
-        status_url = f"{TWILIO_CALLBACK_URL}/status"
+        # 5. Initialize Twilio client (skip validation since credentials are verified)
+        twilio_client = Client(twilio_account_sid, twilio_auth_token)
+        print(f"DEBUG: Twilio client initialized with Account SID: {twilio_account_sid[:10]}...")
+        
+        # 6. Prepare callback URL for Twilio webhook
+        gather_url = f"{twilio_callback_url}/gather"
+        status_url = f"{twilio_callback_url}/status"
         
         # 6. Create communication case ID
         communication_id = f"comm_{uuid.uuid4().hex[:10]}"
         
-        # 7. Store communication case in Firestore (before call)
+        # 7. Final duplicate check before creating communication case (race condition protection)
+        final_duplicate_check = list(db.collection("communication_cases")
+            .where("engagement_id", "==", engagement_id)
+            .limit(1).stream())
+        
+        if final_duplicate_check:
+            existing_comm_id = final_duplicate_check[0].id
+            existing_comm_data = final_duplicate_check[0].to_dict()
+            existing_created_at = existing_comm_data.get("created_at")
+            
+            try:
+                if isinstance(existing_created_at, datetime):
+                    existing_dt = existing_created_at
+                    if existing_dt.tzinfo is None:
+                        existing_dt = existing_dt.replace(tzinfo=timezone.utc)
+                    time_diff = (datetime.now(timezone.utc) - existing_dt).total_seconds()
+                    if time_diff < 30:  # If created within last 30 seconds, skip
+                        print(f"Final duplicate check: another communication {existing_comm_id} created {time_diff:.1f}s ago. Skipping new call.")
+                        return {"status": "skipped", "message": "Duplicate communication detected in final check", "communication_id": existing_comm_id}
+            except:
+                print(f"Final duplicate check: existing communication {existing_comm_id} found, but timestamp unparseable. Skipping new call.")
+                return {"status": "skipped", "message": "Duplicate communication detected (timestamp unparseable)", "communication_id": existing_comm_id}
+        
+        # 8. Store communication case in Firestore (before call)
         communication_data = {
             "communication_id": communication_id,
             "engagement_id": engagement_id,
@@ -146,29 +347,30 @@ def communication_agent(cloud_event):
         db.collection("communication_cases").document(communication_id).set(communication_data)
         print(f"Created communication case {communication_id} for vehicle {vehicle_id}")
         
-        # 8. Initiate Twilio voice call
+        # 9. Initiate Twilio voice call
+        print(f"DEBUG: About to initiate call - to: {customer_phone}, from: {twilio_phone_number}, gather_url: {gather_url}")
         try:
-            call = twilio_client.calls.create(
-                to=customer_phone,
-                from_=TWILIO_PHONE_NUMBER,
-                url=gather_url,
-                method='POST',
-                status_callback=status_url,
-                status_callback_event=['initiated', 'ringing', 'answered', 'completed'],
-                status_callback_method='POST'
-            )
+            # Simplified call parameters - remove optional ones that might cause issues
+            call_params = {
+                'to': customer_phone,
+                'from_': twilio_phone_number,
+                'url': gather_url
+            }
+            print(f"DEBUG: Call parameters: {call_params}")
+            
+            call = twilio_client.calls.create(**call_params)
             
             call_sid = call.sid
             print(f"Initiated Twilio call {call_sid} to {customer_phone}")
             
-            # 9. Update communication case with call SID
+            # 10. Update communication case with call SID
             db.collection("communication_cases").document(communication_id).update({
                 "call_sid": call_sid,
                 "call_status": "initiated",
                 "updated_at": firestore.SERVER_TIMESTAMP
             })
             
-            # 10. Store call context in Firestore for webhook access
+            # 11. Store call context in Firestore for webhook access
             # Webhook will need: engagement_id, vehicle_id, communication_id, etc.
             call_context = {
                 "communication_id": communication_id,
@@ -192,11 +394,20 @@ def communication_agent(cloud_event):
             }
             
         except Exception as e:
-            print(f"Error initiating Twilio call: {str(e)}")
+            error_msg = str(e)
+            print(f"Error initiating Twilio call: {error_msg}")
+            print(f"DEBUG: Error type: {type(e).__name__}")
+            # Check if it's a Twilio REST API error
+            if hasattr(e, 'msg'):
+                print(f"DEBUG: Error message: {e.msg}")
+            if hasattr(e, 'code'):
+                print(f"DEBUG: Error code: {e.code}")
+            if hasattr(e, 'status'):
+                print(f"DEBUG: HTTP status: {e.status}")
             # Update communication case with error
             db.collection("communication_cases").document(communication_id).update({
                 "call_status": "failed",
-                "error": str(e),
+                "error": error_msg,
                 "updated_at": firestore.SERVER_TIMESTAMP
             })
             

@@ -1,0 +1,17 @@
+{
+  "event_id": "evt_test_anomaly_001",
+  "vehicle_id": "MH-07-AB-1234",
+  "timestamp_utc": "2024-12-17T10:01:00Z",
+  "gps_lat": 19.0765,
+  "gps_lon": 72.8782,
+  "speed_kmph": 55.0,
+  "odometer_km": 45232.0,
+  "engine_rpm": 3000,
+  "engine_coolant_temp_c": 115.0,
+  "engine_oil_temp_c": 110.0,
+  "fuel_level_pct": 80.0,
+  "battery_soc_pct": 80.0,
+  "battery_soh_pct": 91.0,
+  "dtc_codes": ["P0217"]
+}
+

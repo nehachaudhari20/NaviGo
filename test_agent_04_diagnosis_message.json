@@ -1,0 +1,7 @@
+{
+  "case_id": "case_test_001",
+  "vehicle_id": "MH-07-AB-1234",
+  "anomaly_type": "engine_overheating",
+  "severity_score": 0.85
+}
+

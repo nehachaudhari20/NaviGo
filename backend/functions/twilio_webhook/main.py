@@ -6,6 +6,8 @@ Purpose: Generates dynamic TwiML responses using Gemini 2.5 Flash and manages co
 
 import json
 import os
+import time
+import random
 from datetime import datetime, timezone
 from google.cloud import firestore, pubsub_v1
 from flask import Request, Response
@@ -14,6 +16,7 @@ import functions_framework
 # Vertex AI imports
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
+from google.api_core import exceptions
 
 # Twilio imports
 try:
@@ -24,8 +27,25 @@ except ImportError:
     print("Twilio not available")
 
 # Project configuration
-PROJECT_ID = os.getenv("PROJECT_ID", "navigo-27206")
-LOCATION = os.getenv("LOCATION", "us-central1")
+# Read and validate environment variables
+PROJECT_ID_RAW = os.getenv("PROJECT_ID", "navigo-27206")
+LOCATION_RAW = os.getenv("LOCATION", "us-central1")
+
+# Clean and validate - remove any extra text that might have been concatenated
+PROJECT_ID = PROJECT_ID_RAW.strip().split()[0]  # Take only first word (in case "LOCATION=..." was appended)
+LOCATION = LOCATION_RAW.strip().split()[0]  # Take only first word
+
+# Additional validation - ensure PROJECT_ID doesn't contain "LOCATION"
+if "LOCATION" in PROJECT_ID.upper():
+    # Extract just the project ID part
+    PROJECT_ID = PROJECT_ID.split("LOCATION")[0].strip()
+if "=" in PROJECT_ID:
+    # If there's an equals sign, take only the part before it
+    PROJECT_ID = PROJECT_ID.split("=")[0].strip()
+
+# Debug logging (will be visible in Cloud Logs)
+print(f"DEBUG: PROJECT_ID_RAW={PROJECT_ID_RAW}, PROJECT_ID={PROJECT_ID}")
+print(f"DEBUG: LOCATION_RAW={LOCATION_RAW}, LOCATION={LOCATION}")
 
 # Pub/Sub configuration
 COMMUNICATION_TOPIC_NAME = "navigo-communication-complete"
@@ -135,6 +155,13 @@ def handle_initial_call(request: Request) -> Response:
         engagement_data = context_data.get("engagement_data", {})
         
         # Generate greeting using Gemini
+        # Validate PROJECT_ID and LOCATION before initialization
+        if not PROJECT_ID or " " in PROJECT_ID or "=" in PROJECT_ID:
+            raise ValueError(f"Invalid PROJECT_ID: '{PROJECT_ID}'. Must be a single word without spaces or equals signs.")
+        if not LOCATION or " " in LOCATION or "=" in LOCATION:
+            raise ValueError(f"Invalid LOCATION: '{LOCATION}'. Must be a single word without spaces or equals signs.")
+        
+        print(f"Initializing Vertex AI with project={PROJECT_ID}, location={LOCATION}")
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         model = GenerativeModel("gemini-2.5-flash")
         
@@ -147,8 +174,33 @@ Generate the initial greeting for this call:
 
 Return ONLY the JSON response with greeting message and next_stage="explanation"."""
         
-        response = model.generate_content(prompt)
-        result = extract_json_from_response(response.text)
+        # Call Gemini with retry logic for rate limiting (429 errors)
+        max_retries = 5
+        retry_delay = 2  # Start with 2 seconds
+        response = None
+        response_text = None
+        
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_content(prompt)
+                response_text = response.text
+                break  # Success, exit retry loop
+            except exceptions.ResourceExhausted as e:
+                if attempt < max_retries - 1:
+                    # Exponential backoff with jitter: 2s, 4s, 8s, 16s, 32s
+                    wait_time = retry_delay * (2 ** attempt) + random.uniform(0, 1)
+                    print(f"Rate limit hit (429), retrying in {wait_time:.2f}s (attempt {attempt + 1}/{max_retries})...")
+                    time.sleep(wait_time)
+                else:
+                    # Last attempt failed
+                    print(f"Rate limit error after {max_retries} attempts: {str(e)}")
+                    raise
+            except Exception as e:
+                # For other errors, don't retry
+                print(f"Error calling Gemini: {str(e)}")
+                raise
+        
+        result = extract_json_from_response(response_text)
         
         # Generate TwiML
         twiml_response = VoiceResponse()
@@ -226,6 +278,13 @@ def handle_gather(request: Request) -> Response:
         })
         
         # Use Gemini to generate response
+        # Validate PROJECT_ID and LOCATION before initialization
+        if not PROJECT_ID or " " in PROJECT_ID or "=" in PROJECT_ID:
+            raise ValueError(f"Invalid PROJECT_ID: '{PROJECT_ID}'. Must be a single word without spaces or equals signs.")
+        if not LOCATION or " " in LOCATION or "=" in LOCATION:
+            raise ValueError(f"Invalid LOCATION: '{LOCATION}'. Must be a single word without spaces or equals signs.")
+        
+        print(f"Initializing Vertex AI with project={PROJECT_ID}, location={LOCATION}")
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         model = GenerativeModel("gemini-2.5-flash")
         
@@ -251,8 +310,39 @@ If customer asks questions, set next_stage="questions". If customer declines, se
 
 Return ONLY the JSON response."""
         
-        response = model.generate_content(prompt)
-        result = extract_json_from_response(response.text)
+        # Call Gemini with retry logic for rate limiting (429 errors)
+        # Note: For voice calls, we use shorter jitter (0-2s) to keep conversation responsive
+        jitter = random.uniform(0, 2)
+        if jitter > 0:
+            print(f"Adding {jitter:.2f}s jitter delay before Gemini call...")
+            time.sleep(jitter)
+        
+        max_retries = 5
+        retry_delay = 2  # Start with 2 seconds
+        response = None
+        response_text = None
+        
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_content(prompt)
+                response_text = response.text
+                break  # Success, exit retry loop
+            except exceptions.ResourceExhausted as e:
+                if attempt < max_retries - 1:
+                    # Exponential backoff with jitter: 2s, 4s, 8s, 16s, 32s
+                    wait_time = retry_delay * (2 ** attempt) + random.uniform(0, 1)
+                    print(f"Rate limit hit (429), retrying in {wait_time:.2f}s (attempt {attempt + 1}/{max_retries})...")
+                    time.sleep(wait_time)
+                else:
+                    # Last attempt failed
+                    print(f"Rate limit error after {max_retries} attempts: {str(e)}")
+                    raise
+            except Exception as e:
+                # For other errors, don't retry
+                print(f"Error calling Gemini: {str(e)}")
+                raise
+        
+        result = extract_json_from_response(response_text)
         
         agent_message = result.get("message", "Thank you for your time.")
         next_stage = result.get("next_stage", "completed")

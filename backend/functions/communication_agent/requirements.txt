@@ -1,5 +1,5 @@
 google-cloud-firestore==2.13.1
 google-cloud-pubsub==2.18.4
 functions-framework==3.5.0
-twilio>=8.0.0
+requests>=2.31.0
 

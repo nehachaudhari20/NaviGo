@@ -8,6 +8,7 @@ import json
 import base64
 from google.cloud import pubsub_v1
 from google.cloud import bigquery
+from google.cloud import firestore
 import functions_framework
 
 # Project and topic configuration
@@ -29,50 +30,89 @@ def telemetry_firestore_trigger(cloud_event):
     
     try:
         # 1. Parse Firestore event data
-        # cloud_event.data might be a dict or JSON string
-        if isinstance(cloud_event.data, str):
-            event_data = json.loads(cloud_event.data)
-        else:
+        # For Firestore triggers via Eventarc, data comes as protobuf-encoded bytes
+        # We need to decode it using DocumentEventData
+        
+        # 1. Extract document ID directly from protobuf bytes
+        # For 2nd gen Firestore triggers, data comes as protobuf-encoded bytes
+        # The document ID (event_id) is embedded in the protobuf structure
+        doc_id = None
+        
+        if isinstance(cloud_event.data, bytes):
+            try:
+                # Simple approach: Look for "evt_" pattern in the bytes (all event IDs start with this)
+                # The protobuf contains the document path: ...telemetry_events/evt_XXXXX...
+                evt_pos = cloud_event.data.find(b'evt_')
+                if evt_pos != -1:
+                    # Extract the event ID (typically 10-20 characters: evt_ + 10 hex chars)
+                    # Extract up to 25 bytes to cover "evt_" + max 20 char ID
+                    id_bytes = cloud_event.data[evt_pos:evt_pos+25]
+                    # Find end of string (look for null byte, non-printable, or end)
+                    for i, byte in enumerate(id_bytes):
+                        if byte == 0 or (byte < 32 and byte != 9 and byte != 10 and byte != 13):  # null, tab, newline, carriage return are OK
+                            id_bytes = id_bytes[:i]
+                            break
+                    # Also ensure we only take alphanumeric/underscore/hyphen
+                    clean_bytes = bytearray()
+                    for byte in id_bytes:
+                        if (32 <= byte <= 126) and (chr(byte).isalnum() or chr(byte) in ['_', '-']):
+                            clean_bytes.append(byte)
+                        else:
+                            break
+                    if clean_bytes:
+                        doc_id = clean_bytes.decode('utf-8', errors='ignore')
+                        print(f"Extracted document ID from bytes: {doc_id}")
+                
+                if not doc_id:
+                    raise ValueError("Could not find event ID pattern (evt_) in protobuf bytes")
+                
+            except Exception as e:
+                print(f"Error extracting document ID: {str(e)}")
+                print(f"First 200 bytes (hex): {cloud_event.data[:200].hex()}")
+                print(f"First 200 bytes (decoded): {cloud_event.data[:200].decode('utf-8', errors='ignore')}")
+                return {"status": "error", "error": f"Failed to extract document ID: {str(e)}"}
+            
+            # Fetch the actual document from Firestore to get all fields
+            # This is more reliable than parsing all protobuf fields manually
+            try:
+                db = firestore.Client()
+                doc_ref = db.collection("telemetry_events").document(doc_id)
+                doc_snapshot = doc_ref.get()
+                
+                if not doc_snapshot.exists:
+                    print(f"Document {doc_id} not found in Firestore")
+                    return {"status": "error", "error": "Document not found"}
+                
+                # Convert Firestore document to dict
+                doc_data = doc_snapshot.to_dict()
+                print(f"Successfully fetched document {doc_id} from Firestore")
+                
+            except Exception as e:
+                print(f"Error fetching document from Firestore: {str(e)}")
+                return {"status": "error", "error": f"Failed to fetch document: {str(e)}"}
+            
+        elif isinstance(cloud_event.data, dict):
+            # Fallback: if data is already a dict (shouldn't happen for Firestore triggers)
             event_data = cloud_event.data
-        
-        # 2. Extract document path and check collection
-        doc_path = event_data.get("value", {}).get("name", "")
-        if "telemetry_events" not in doc_path:
-            print(f"Skipping event from different collection: {doc_path}")
-            return
-        
-        # 3. Extract document data
-        value = event_data.get("value", {})
-        if not value:
-            print("No document data in event")
-            return
-        
-        # Extract fields from Firestore document
-        fields = value.get("fields", {})
-        if not fields:
-            print("Empty document fields")
-            return
-        
-        # Convert Firestore fields to dict
-        doc_data = {}
-        for key, field_value in fields.items():
-            # Handle different Firestore value types
-            if "stringValue" in field_value:
-                doc_data[key] = field_value["stringValue"]
-            elif "integerValue" in field_value:
-                doc_data[key] = int(field_value["integerValue"])
-            elif "doubleValue" in field_value:
-                doc_data[key] = float(field_value["doubleValue"])
-            elif "booleanValue" in field_value:
-                doc_data[key] = field_value["booleanValue"]
-            elif "arrayValue" in field_value:
-                # Handle array (like dtc_codes)
-                array_values = field_value["arrayValue"].get("values", [])
-                doc_data[key] = [v.get("stringValue", "") for v in array_values if "stringValue" in v]
-            elif "timestampValue" in field_value:
-                doc_data[key] = field_value["timestampValue"]
-            elif "nullValue" in field_value:
-                doc_data[key] = None
+            doc_path = event_data.get("value", {}).get("name", "")
+            if "telemetry_events" not in doc_path:
+                print(f"Skipping event from different collection: {doc_path}")
+                return {"status": "skipped"}
+            
+            # Extract document ID and fetch from Firestore
+            doc_id = doc_path.split("/")[-1] if "/" in doc_path else ""
+            db = firestore.Client()
+            doc_ref = db.collection("telemetry_events").document(doc_id)
+            doc_snapshot = doc_ref.get()
+            
+            if not doc_snapshot.exists:
+                print(f"Document {doc_id} not found")
+                return {"status": "error", "error": "Document not found"}
+            
+            doc_data = doc_snapshot.to_dict()
+        else:
+            print(f"Unexpected data type: {type(cloud_event.data)}")
+            return {"status": "error", "error": f"Unsupported data type: {type(cloud_event.data)}"}
         
         if not doc_data:
             print("Empty document data after conversion")
@@ -167,4 +207,3 @@ def prepare_bigquery_row(doc_data: dict) -> dict:
             bq_row[bq_key] = value
     
     return bq_row
-
