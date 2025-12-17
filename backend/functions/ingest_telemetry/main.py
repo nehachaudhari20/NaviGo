@@ -9,12 +9,14 @@ import uuid
 from datetime import datetime
 from flask import Request, jsonify
 from google.cloud import firestore
+import functions_framework
 from schemas import TelematicsEvent
 
 # Initialize Firestore client
 db = firestore.Client()
 
 
+@functions_framework.http
 def ingest_telemetry(request: Request):
     """
     HTTP Cloud Function to ingest vehicle telemetry data.

@@ -8,35 +8,15 @@ import json
 import os
 import uuid
 import re
-import time
-import random
 from datetime import datetime
 from google.cloud import pubsub_v1, firestore, bigquery
 import functions_framework
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
-from google.api_core import exceptions
 
 # Vertex AI configuration
-# Read and validate environment variables
-PROJECT_ID_RAW = os.getenv("PROJECT_ID", "navigo-27206")
-LOCATION_RAW = os.getenv("LOCATION", "us-central1")
-
-# Clean and validate - remove any extra text that might have been concatenated
-PROJECT_ID = PROJECT_ID_RAW.strip().split()[0]  # Take only first word (in case "LOCATION=..." was appended)
-LOCATION = LOCATION_RAW.strip().split()[0]  # Take only first word
-
-# Additional validation - ensure PROJECT_ID doesn't contain "LOCATION"
-if "LOCATION" in PROJECT_ID.upper():
-    # Extract just the project ID part
-    PROJECT_ID = PROJECT_ID.split("LOCATION")[0].strip()
-if "=" in PROJECT_ID:
-    # If there's an equals sign, take only the part before it
-    PROJECT_ID = PROJECT_ID.split("=")[0].strip()
-
-# Debug logging (will be visible in Cloud Logs)
-print(f"DEBUG: PROJECT_ID_RAW={PROJECT_ID_RAW}, PROJECT_ID={PROJECT_ID}")
-print(f"DEBUG: LOCATION_RAW={LOCATION_RAW}, LOCATION={LOCATION}")
+PROJECT_ID = os.getenv("PROJECT_ID", "navigo-27206")
+LOCATION = os.getenv("LOCATION", "us-central1")
 
 # Pub/Sub configuration
 ENGAGEMENT_TOPIC_NAME = "navigo-engagement-complete"
@@ -46,33 +26,53 @@ COMMUNICATION_TOPIC_NAME = "navigo-communication-trigger"
 DATASET_ID = "telemetry"
 TABLE_ID = "engagement_cases"
 
-# System prompt for Engagement Agent
-SYSTEM_PROMPT = """You are an Engagement Agent for NaviGo. You MUST use ONLY the Gemini 2.5 Flash model (gemini-2.5-flash) to generate natural, empathetic customer engagement scripts for voice calls.
+# System prompt for Engagement Agent - Enhanced for Persuasive Conversations
+SYSTEM_PROMPT = """You are a persuasive, empathetic Engagement Agent for NaviGo, a vehicle maintenance service in India. You MUST use ONLY the Gemini 2.5 Flash model (gemini-2.5-flash) to generate natural, human-like, and convincing customer engagement scripts.
 
 CRITICAL INSTRUCTIONS - READ CAREFULLY:
 1. You will receive root cause, recommended action, and scheduled slot information
-2. Generate a realistic, natural conversation between AI agent and customer
-3. Explain technical issues in simple, non-technical language
-4. Be empathetic and understanding
-5. DO NOT HALLUCINATE - Use only the data provided
-6. Return EXACTLY the JSON format specified below - no extra fields, no markdown
+2. Generate a realistic, natural, and PERSUASIVE conversation between AI agent and customer
+3. Explain technical issues in simple, non-technical language that anyone can understand
+4. Be empathetic, warm, and human-like (not robotic)
+5. CONVINCE customers to book services by emphasizing safety, urgency, and value
+6. Address common objections (cost, time, urgency) proactively
+7. DO NOT HALLUCINATE - Use only the data provided
+8. Return EXACTLY the JSON format specified below - no extra fields, no markdown
 
-CONVERSATION STRUCTURE:
-1. Greeting: Warm, professional greeting
-2. Issue Explanation: Explain the vehicle issue in simple terms (avoid jargon)
-3. Root Cause: Explain why this happened (simplified version of root_cause)
-4. Recommended Action: Explain what needs to be done (simplified version of recommended_action)
-5. Appointment Presentation: Present the scheduled slot clearly
-6. Customer Response: Simulate realistic customer response (can be positive, hesitant, or negative)
-7. Confirmation/Handling: Handle customer decision appropriately
+CONVERSATION STRUCTURE (Enhanced for Persuasion):
+1. Warm Greeting: "Namaste! This is NaviGo calling about your vehicle [vehicle_id]"
+2. Issue Explanation: Explain the vehicle issue in simple terms with empathy
+   - Use everyday language: "brake pads wearing down" not "friction material degradation"
+   - Connect to safety: "This affects your ability to stop safely"
+   - Create appropriate urgency: "Should be fixed within 7-10 days"
+3. Root Cause (Simplified): Explain why this happened in simple terms
+4. Recommended Action: Explain what needs to be done clearly
+5. Safety/Urgency Emphasis: If safety-critical, emphasize gently but clearly
+   - "This is a safety concern for you and your family"
+   - "Delaying could lead to more expensive repairs"
+6. Cost Transparency: Address cost concerns proactively
+   - "Typically costs ₹2,000-5,000 depending on your vehicle"
+   - "Our service center can provide exact estimate"
+7. Appointment Presentation: Present the scheduled slot clearly and make it easy
+   - "We have a slot tomorrow at 10 AM - just 30 minutes"
+   - "I can send you a reminder"
+8. Handle Objections: Anticipate and address common concerns
+   - If customer wants to delay: "I understand you're busy, but this is safety-critical..."
+   - If customer asks about cost: Provide transparent cost information
+   - If customer is hesitant: Emphasize safety and convenience
+9. Customer Response: Simulate realistic customer response (can be positive, hesitant, or negative)
+10. Confirmation/Handling: Handle customer decision with empathy and persistence (if appropriate)
 
-LANGUAGE GUIDELINES:
-- Use simple, everyday language
-- Avoid technical terms (use "cooling system" instead of "engine_coolant_system")
-- Be empathetic and understanding
-- Use "we" and "us" to show partnership
+LANGUAGE GUIDELINES (Enhanced for India):
+- Use warm, empathetic language: "Namaste", "Aapki vehicle", "Aapke liye"
+- Mix English and Hindi naturally (common in India)
+- Use simple, everyday words: "brake pads" not "friction material"
+- Be conversational, not formal: "We've detected" not "It has been detected"
+- Use "we" and "us" to show partnership: "We can help you with this"
 - Keep sentences short and clear
 - Use active voice
+- Add empathy: "I understand you're busy", "I know this is inconvenient"
+- Create urgency appropriately: Safety issues = urgent, Maintenance = flexible
 
 CUSTOMER DECISION SIMULATION:
 - Simulate realistic customer responses based on:
@@ -178,41 +178,16 @@ def engagement_agent(cloud_event):
     
     try:
         # 1. Parse Pub/Sub message
-        # For 2nd gen Cloud Functions, cloud_event.data can be:
-        # - A string (JSON string)
-        # - A dict (already parsed)
-        # - Base64 encoded in a "message" wrapper (legacy format)
-        
-        message_data = None
-        
         if isinstance(cloud_event.data, str):
-            try:
-                message_data = json.loads(cloud_event.data)
-            except json.JSONDecodeError:
-                # Might be base64 encoded
-                try:
-                    import base64
-                    decoded = base64.b64decode(cloud_event.data).decode("utf-8")
-                    message_data = json.loads(decoded)
-                except:
-                    print(f"Failed to parse cloud_event.data as JSON or base64: {cloud_event.data[:100]}")
-                    raise
-        elif isinstance(cloud_event.data, dict):
-            message_data = cloud_event.data
+            message_data = json.loads(cloud_event.data)
         else:
             message_data = cloud_event.data
         
-        # Handle legacy Pub/Sub message format (wrapped in "message" object)
-        if isinstance(message_data, dict) and "message" in message_data and "data" in message_data["message"]:
+        # Handle base64 encoded data
+        if "message" in message_data and "data" in message_data["message"]:
             import base64
-            try:
-                decoded = base64.b64decode(message_data["message"]["data"]).decode("utf-8")
-                if decoded:  # Only parse if decoded string is not empty
-                    message_data = json.loads(decoded)
-            except Exception as e:
-                print(f"Error decoding base64 message data: {e}")
-                # Try to use message_data as-is if decoding fails
-                pass
+            decoded = base64.b64decode(message_data["message"]["data"]).decode("utf-8")
+            message_data = json.loads(decoded)
         
         scheduling_id = message_data.get("scheduling_id")
         rca_id = message_data.get("rca_id")
@@ -225,20 +200,8 @@ def engagement_agent(cloud_event):
             print("Missing scheduling_id or vehicle_id in message")
             return {"status": "error", "error": "Missing required fields"}
         
-        # 2. Check for existing engagement to prevent duplicate processing
+        # 2. Fetch vehicle data to get customer phone and name
         db = firestore.Client()
-        
-        # Check if engagement already exists for this scheduling_id (prevent duplicate engagement)
-        existing_engagement = list(db.collection("engagement_cases")
-            .where("scheduling_id", "==", scheduling_id)
-            .limit(1).stream())
-        
-        if existing_engagement:
-            existing_engagement_id = existing_engagement[0].id
-            print(f"Engagement already exists for scheduling {scheduling_id} - engagement_id: {existing_engagement_id}. Skipping.")
-            return {"status": "skipped", "message": "Engagement already exists", "engagement_id": existing_engagement_id}
-        
-        # 3. Fetch vehicle data to get customer phone and name
         vehicle_ref = db.collection("vehicles").document(vehicle_id)
         vehicle_doc = vehicle_ref.get()
         
@@ -249,6 +212,18 @@ def engagement_agent(cloud_event):
         vehicle_data = vehicle_doc.to_dict()
         customer_phone = vehicle_data.get("owner_phone") or vehicle_data.get("phone")
         customer_name = vehicle_data.get("owner_name") or vehicle_data.get("name") or "Customer"
+        
+        # 3. If rca_id not in message, fetch from scheduling document
+        if not rca_id:
+            scheduling_ref = db.collection("scheduling_cases").document(scheduling_id)
+            scheduling_doc = scheduling_ref.get()
+            if scheduling_doc.exists:
+                scheduling_data = scheduling_doc.to_dict()
+                rca_id = scheduling_data.get("rca_id")
+        
+        if not rca_id:
+            print("Missing rca_id in message and scheduling case")
+            return {"status": "error", "error": "Missing rca_id"}
         
         # 4. Fetch RCA case to get root cause and recommended action
         rca_ref = db.collection("rca_cases").document(rca_id)
@@ -266,6 +241,15 @@ def engagement_agent(cloud_event):
         best_slot = best_slot or message_data.get("best_slot")
         service_center = service_center or message_data.get("service_center")
         
+        # If best_slot or service_center not in message, fetch from scheduling document
+        if not best_slot or not service_center:
+            scheduling_ref = db.collection("scheduling_cases").document(scheduling_id)
+            scheduling_doc = scheduling_ref.get()
+            if scheduling_doc.exists:
+                scheduling_data = scheduling_doc.to_dict()
+                best_slot = best_slot or scheduling_data.get("best_slot")
+                service_center = service_center or scheduling_data.get("service_center")
+        
         # 5. Prepare input for Gemini
         input_data = {
             "vehicle_id": vehicle_id,
@@ -276,58 +260,13 @@ def engagement_agent(cloud_event):
         }
         
         # 6. Initialize Vertex AI and call Gemini 2.5 Flash
-        # Validate PROJECT_ID and LOCATION before initialization
-        if not PROJECT_ID or " " in PROJECT_ID or "=" in PROJECT_ID:
-            raise ValueError(f"Invalid PROJECT_ID: '{PROJECT_ID}'. Must be a single word without spaces or equals signs.")
-        if not LOCATION or " " in LOCATION or "=" in LOCATION:
-            raise ValueError(f"Invalid LOCATION: '{LOCATION}'. Must be a single word without spaces or equals signs.")
-        
-        print(f"Initializing Vertex AI with project={PROJECT_ID}, location={LOCATION}")
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         model = GenerativeModel("gemini-2.5-flash")
         
         prompt = f"{SYSTEM_PROMPT}\n\nGenerate customer engagement for this vehicle:\n{json.dumps(input_data, default=str, indent=2)}\n\nReturn ONLY the JSON response matching the output format specified above."
         
-        # Add longer random delay (0-10 seconds) to spread out concurrent requests and reduce rate limiting
-        jitter = random.uniform(0, 10)
-        print(f"Adding {jitter:.2f}s jitter delay to spread out requests...")
-        time.sleep(jitter)
-        
-        # Additional check: Before calling Gemini, verify no duplicate engagement was created during jitter delay
-        quick_check = list(db.collection("engagement_cases")
-            .where("scheduling_id", "==", scheduling_id)
-            .limit(1).stream())
-        
-        if quick_check:
-            existing_engagement_id = quick_check[0].id
-            print(f"Skipping Gemini call for scheduling {scheduling_id} - duplicate engagement {existing_engagement_id} detected after jitter delay")
-            return {"status": "skipped", "message": "Duplicate detected after jitter", "engagement_id": existing_engagement_id}
-        
-        # Call Gemini with retry logic for rate limiting (429 errors)
-        max_retries = 5
-        retry_delay = 2  # Start with 2 seconds
-        response = None
-        response_text = None
-        
-        for attempt in range(max_retries):
-            try:
-                response = model.generate_content(prompt)
-                response_text = response.text
-                break  # Success, exit retry loop
-            except exceptions.ResourceExhausted as e:
-                if attempt < max_retries - 1:
-                    # Exponential backoff with jitter: 2s, 4s, 8s, 16s, 32s
-                    wait_time = retry_delay * (2 ** attempt) + random.uniform(0, 1)
-                    print(f"Rate limit hit (429), retrying in {wait_time:.2f}s (attempt {attempt + 1}/{max_retries})...")
-                    time.sleep(wait_time)
-                else:
-                    # Last attempt failed
-                    print(f"Rate limit error after {max_retries} attempts: {str(e)}")
-                    raise
-            except Exception as e:
-                # For other errors, don't retry
-                print(f"Error calling Gemini: {str(e)}")
-                raise
+        response = model.generate_content(prompt)
+        response_text = response.text
         
         # 7. Parse Gemini response
         try:
@@ -359,38 +298,6 @@ def engagement_agent(cloud_event):
             "created_at": firestore.SERVER_TIMESTAMP
         }
         
-        # Final check: Don't create duplicate engagement if one was created while we were processing
-        existing_final = list(db.collection("engagement_cases")
-            .where("scheduling_id", "==", scheduling_id)
-            .limit(1).stream())
-        
-        if existing_final:
-            existing_engagement_id = existing_final[0].id
-            existing_engagement_data = existing_final[0].to_dict()
-            existing_created_at = existing_engagement_data.get("created_at")
-            
-            # Check if the existing engagement is very recent (within last 30 seconds)
-            try:
-                from datetime import timezone
-                if isinstance(existing_created_at, datetime):
-                    existing_dt = existing_created_at
-                    if existing_dt.tzinfo is None:
-                        existing_dt = existing_dt.replace(tzinfo=timezone.utc)
-                    time_diff = (datetime.now(timezone.utc) - existing_dt).total_seconds()
-                    if time_diff < 30:  # Only skip if very recent (within 30 seconds)
-                        print(f"Duplicate engagement detected - engagement {existing_engagement_id} created {time_diff:.1f}s ago. Skipping.")
-                        return {"status": "skipped", "message": "Duplicate engagement detected", "engagement_id": existing_engagement_id}
-                    else:
-                        print(f"Existing engagement {existing_engagement_id} is {time_diff:.1f}s old - allowing new engagement creation")
-                elif existing_created_at is firestore.SERVER_TIMESTAMP or (hasattr(existing_created_at, "__class__") and "Sentinel" in str(type(existing_created_at))):
-                    # Sentinel means just created - skip
-                    print(f"Duplicate engagement detected - engagement {existing_engagement_id} was just created. Skipping.")
-                    return {"status": "skipped", "message": "Duplicate engagement detected", "engagement_id": existing_engagement_id}
-            except:
-                # If timestamp check fails, skip to be safe
-                print(f"Duplicate engagement detected - engagement {existing_engagement_id} exists (timestamp check failed). Skipping.")
-                return {"status": "skipped", "message": "Duplicate engagement detected", "engagement_id": existing_engagement_id}
-        
         # 10. Store in Firestore
         db.collection("engagement_cases").document(engagement_id).set(engagement_data)
         print(f"Created engagement case {engagement_id} for vehicle {vehicle_id}")
@@ -413,32 +320,35 @@ def engagement_agent(cloud_event):
             db.collection("bookings").document(result.get("booking_id")).set(booking_data)
             print(f"Created booking {result.get('booking_id')} for vehicle {vehicle_id}")
         
-        # 13. Prepare BigQuery row and sync (non-blocking - don't fail if BigQuery fails)
-        try:
-            bq_row = prepare_bigquery_row(engagement_data)
-            bq_client = bigquery.Client()
-            table_ref = bq_client.dataset(DATASET_ID).table(TABLE_ID)
-            errors = bq_client.insert_rows_json(table_ref, [bq_row])
-            
-            if errors:
-                print(f"BigQuery insert errors: {errors}")
-            else:
-                print(f"Synced engagement case {engagement_id} to BigQuery")
-        except Exception as bq_error:
-            # Don't fail the entire function if BigQuery fails (table might not exist yet)
-            print(f"BigQuery sync failed (non-blocking): {str(bq_error)}. Continuing with Pub/Sub publish...")
+        # 13. Prepare BigQuery row
+        bq_row = prepare_bigquery_row(engagement_data)
         
-        # 14. Publish to engagement-complete topic
+        # 14. Sync to BigQuery
+        bq_client = bigquery.Client()
+        table_ref = bq_client.dataset(DATASET_ID).table(TABLE_ID)
+        errors = bq_client.insert_rows_json(table_ref, [bq_row])
+        
+        if errors:
+            print(f"BigQuery insert errors: {errors}")
+        else:
+            print(f"Synced engagement case {engagement_id} to BigQuery")
+        
+        # 15. Publish to engagement-complete topic
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(PROJECT_ID, ENGAGEMENT_TOPIC_NAME)
         
+        # Include confidence and agent_stage for orchestrator
+        # Engagement doesn't have confidence, use default high confidence
+        confidence_score = 0.90
         pubsub_message = {
             "engagement_id": engagement_id,
             "scheduling_id": scheduling_id,
             "case_id": case_id,
             "vehicle_id": vehicle_id,
             "customer_decision": result.get("customer_decision"),
-            "booking_id": result.get("booking_id")
+            "booking_id": result.get("booking_id"),
+            "confidence": confidence_score,  # Add confidence for orchestrator
+            "agent_stage": "engagement"  # Explicitly set agent stage for orchestrator
         }
         
         message_bytes = json.dumps(pubsub_message).encode("utf-8")
@@ -446,7 +356,7 @@ def engagement_agent(cloud_event):
         message_id = future.result()
         print(f"Published engagement case {engagement_id} to {ENGAGEMENT_TOPIC_NAME}: {message_id}")
         
-        # 15. Publish to communication-trigger topic (for actual voice call)
+        # 16. Publish to communication-trigger topic (for actual voice call)
         if customer_phone:  # Only trigger if phone number is available
             comm_topic_path = publisher.topic_path(PROJECT_ID, COMMUNICATION_TOPIC_NAME)
             comm_message = {
@@ -495,22 +405,10 @@ def prepare_bigquery_row(engagement_data: dict) -> dict:
         
         value = engagement_data[key]
         
-        # Handle Firestore SERVER_TIMESTAMP (Sentinel object)
-        if key == "created_at":
-            # Check if it's a SERVER_TIMESTAMP Sentinel object
-            if value is firestore.SERVER_TIMESTAMP or (hasattr(value, "__class__") and "Sentinel" in str(type(value))):
-                from datetime import datetime, timezone
-                bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
-            elif hasattr(value, "timestamp"):
-                # Already a timestamp object
-                from datetime import timezone
-                bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
-            elif value is None:
-                # Skip None values
-                continue
-            else:
-                # Already a string or datetime
-                bq_row[bq_key] = value
+        # Handle Firestore SERVER_TIMESTAMP
+        if key == "created_at" and hasattr(value, "timestamp"):
+            from datetime import timezone
+            bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
         elif value is None:
             continue
         else:

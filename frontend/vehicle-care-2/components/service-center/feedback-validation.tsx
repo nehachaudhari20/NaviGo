@@ -43,13 +43,32 @@ export default function FeedbackValidation({
     partsUsed: [] as string[],
   })
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: API call to submit feedback
-    console.log("Feedback submitted:", formData)
-    setSubmitted(true)
+    setSubmitting(true)
+    setError(null)
     
+    try {
+      const { submitFeedback } = await import('@/lib/api/agents')
+      
+      const feedbackData = {
+        booking_id: appointmentId || `booking_${Date.now()}`,
+        vehicle_id: vehicleId || "MH-07-AB-1234",
+        technician_notes: formData.technicianNotes,
+        customer_rating: formData.accuracyScore / 20, // Convert 0-100 to 0-5 scale
+        prediction_accurate: formData.predictionAccurate,
+        accuracy_score: formData.accuracyScore,
+        actual_issue: formData.actualIssue,
+        parts_used: formData.partsUsed,
+      }
+      
+      const result = await submitFeedback(feedbackData)
+      
+      if (result.status === 'success') {
+        setSubmitted(true)
     // Reset after 3 seconds
     setTimeout(() => {
       setSubmitted(false)
@@ -62,6 +81,15 @@ export default function FeedbackValidation({
         partsUsed: [],
       })
     }, 3000)
+      } else {
+        setError(result.error || 'Failed to submit feedback')
+      }
+    } catch (err) {
+      console.error('Feedback submission error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to submit feedback')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const getAccuracyColor = (score: number) => {
@@ -81,6 +109,11 @@ export default function FeedbackValidation({
           {submitted && (
             <Badge className="bg-green-100 text-green-700 border-green-300 text-xs">
               Submitted ✓
+            </Badge>
+          )}
+          {error && (
+            <Badge className="bg-red-100 text-red-700 border-red-300 text-xs">
+              Error
             </Badge>
           )}
         </div>

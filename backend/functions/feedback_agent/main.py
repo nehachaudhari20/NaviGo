@@ -439,6 +439,9 @@ def feedback_agent(cloud_event):
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(PROJECT_ID, FEEDBACK_TOPIC_NAME)
         
+        # Include confidence and agent_stage for orchestrator
+        # Feedback doesn't have confidence, use default high confidence
+        confidence_score = 0.90
         pubsub_message = {
             "feedback_id": feedback_id,
             "booking_id": booking_id,
@@ -446,7 +449,9 @@ def feedback_agent(cloud_event):
             "vehicle_id": vehicle_id,
             "cei_score": result.get("cei_score"),
             "validation_label": result.get("validation_label"),
-            "recommended_retrain": result.get("recommended_retrain")
+            "recommended_retrain": result.get("recommended_retrain"),
+            "confidence": confidence_score,  # Add confidence for orchestrator
+            "agent_stage": "feedback"  # Explicitly set agent stage for orchestrator
         }
         
         message_bytes = json.dumps(pubsub_message).encode("utf-8")

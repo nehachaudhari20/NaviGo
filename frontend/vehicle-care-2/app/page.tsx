@@ -12,6 +12,7 @@ import NearbyProviders from "@/components/nearby-providers"
 import AIPredictionsTransparent from "@/components/ai-predictions-transparent"
 import CustomerValue from "@/components/customer-value"
 import HealthSummary from "@/components/health-summary"
+import TelemetryUpload from "@/components/telemetry-upload"
 
 export default function DashboardPage() {
   const { isAuthenticated, user } = useAuth()
@@ -46,6 +47,9 @@ export default function DashboardPage() {
           <div className="max-w-[1400px] mx-auto p-6 space-y-6">
             {/* Vehicle Overview & Maintenance Card */}
             <VehicleCard />
+
+            {/* Telemetry Upload */}
+            <TelemetryUpload />
 
             {/* AI Predictions with Transparency (Combined) */}
             <AIPredictionsTransparent />

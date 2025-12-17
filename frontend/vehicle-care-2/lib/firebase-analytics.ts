@@ -14,22 +14,55 @@ const firebaseConfig = {
 let analytics: Analytics | null = null
 let app: FirebaseApp | null = null
 
+// Track if we've already warned about missing config (to avoid spam)
+let hasWarnedAboutConfig = false
+
 export const initAnalytics = () => {
   if (typeof window !== 'undefined' && !analytics) {
+    // Check if required config values are present
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+      // Only warn once in development mode
+      if (!hasWarnedAboutConfig && process.env.NODE_ENV === 'development') {
+        console.debug('[Firebase] Analytics skipped: Missing required configuration (apiKey or projectId). Analytics will be disabled.')
+        hasWarnedAboutConfig = true
+      }
+      return null
+    }
+    
     try {
-      // Initialize Firebase app if not already initialized
-      if (!getApps().length) {
-        app = initializeApp(firebaseConfig)
+      // Check if Firebase app is already initialized (from Firestore)
+      const existingApps = getApps()
+      if (existingApps.length > 0) {
+        app = existingApps[0]
       } else {
-        app = getApps()[0]
+        // Only initialize if we have all required config
+        if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+          if (!hasWarnedAboutConfig && process.env.NODE_ENV === 'development') {
+            console.debug('[Firebase] Analytics skipped: Incomplete Firebase configuration')
+            hasWarnedAboutConfig = true
+          }
+          return null
+        }
+        app = initializeApp(firebaseConfig)
       }
       
-      // Initialize Analytics
-      analytics = getAnalytics(app)
-      
-      console.log('[Firebase] Analytics initialized successfully')
+      // Initialize Analytics only if measurementId is present (required for Analytics)
+      if (firebaseConfig.measurementId) {
+        analytics = getAnalytics(app)
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[Firebase] Analytics initialized successfully')
+        }
+      } else {
+        if (!hasWarnedAboutConfig && process.env.NODE_ENV === 'development') {
+          console.debug('[Firebase] Analytics skipped: Missing measurementId')
+          hasWarnedAboutConfig = true
+        }
+      }
     } catch (error) {
-      console.warn('[Firebase] Analytics initialization failed:', error)
+      // Only log errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Firebase] Analytics initialization failed:', error)
+      }
       // Gracefully handle analytics initialization failure
       // App will continue to work without analytics
     }
@@ -57,14 +90,21 @@ export const trackUEBAEvent = (eventName: string, params: Record<string, any>) =
 
 export const setAnalyticsUserId = (userId: string) => {
   if (!analytics && typeof window !== 'undefined') {
-    initAnalytics()
+    const result = initAnalytics()
+    if (!result) {
+      // Analytics not available, skip silently (no warning needed)
+      return
+    }
   }
   
   if (analytics) {
     try {
       setUserId(analytics, userId)
     } catch (error) {
-      console.warn('[Firebase] Failed to set user ID:', error)
+      // Only log errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Firebase] Failed to set user ID:', error)
+      }
     }
   }
 }

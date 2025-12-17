@@ -1,11 +1,28 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, Clock, ChevronRight, Brain, TrendingUp } from "lucide-react"
+import { AlertTriangle, Clock, ChevronRight, Brain, TrendingUp, Loader2 } from "lucide-react"
+import { getPriorityVehicles, subscribeToPriorityVehicles, type DiagnosisCase } from "@/lib/api/dashboard-data"
+import { getCustomerVehicle, type VehicleData } from "@/lib/api/dashboard-data"
 
-const priorityVehicles = [
+interface PriorityVehicle {
+  id: string
+  vehicle: string
+  regNumber: string
+  priority: "critical" | "high" | "medium" | "low"
+  issue: string
+  estimatedTime: string
+  urgency: number
+  aiPredicted: boolean
+  aiConfidence: number | null
+  riskLevel: string
+  vehicleData?: VehicleData
+}
+
+const mockPriorityVehicles = [
   {
     id: "VH-001",
     vehicle: "Tata Nexon",
@@ -45,6 +62,77 @@ const priorityVehicles = [
 ]
 
 export default function PriorityVehicleQueue() {
+  const [priorityVehicles, setPriorityVehicles] = useState<PriorityVehicle[]>(mockPriorityVehicles.map(v => ({ ...v, id: v.id })))
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    // Fetch initial data
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const cases = await getPriorityVehicles(10)
+        
+        // Fetch vehicle details for each case
+        const vehiclesWithData = await Promise.all(
+          cases.map(async (caseItem) => {
+            const vehicleData = await getCustomerVehicle(caseItem.vehicle_id)
+            return {
+              id: caseItem.id,
+              vehicle: vehicleData?.make && vehicleData?.model 
+                ? `${vehicleData.make} ${vehicleData.model}` 
+                : caseItem.vehicle_id,
+              regNumber: vehicleData?.registration_number || caseItem.vehicle_id,
+              priority: caseItem.severity || 'medium',
+              issue: caseItem.predicted_failure || 'Unknown issue',
+              estimatedTime: "2-4 hours", // Could be calculated from case data
+              urgency: Math.round((caseItem.confidence || 0) * 1.2), // Convert confidence to urgency
+              aiPredicted: true,
+              aiConfidence: caseItem.confidence || null,
+              riskLevel: caseItem.severity === 'critical' ? 'High' : caseItem.severity === 'high' ? 'Medium' : 'Low',
+              vehicleData
+            } as PriorityVehicle
+          })
+        )
+        
+        setPriorityVehicles(vehiclesWithData)
+      } catch (error) {
+        console.error('Error loading priority vehicles:', error)
+        // Fallback to mock data on error
+        setPriorityVehicles(mockPriorityVehicles.map(v => ({ ...v, id: v.id })))
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToPriorityVehicles((cases) => {
+      Promise.all(
+        cases.map(async (caseItem) => {
+          const vehicleData = await getCustomerVehicle(caseItem.vehicle_id)
+          return {
+            id: caseItem.id,
+            vehicle: vehicleData?.make && vehicleData?.model 
+              ? `${vehicleData.make} ${vehicleData.model}` 
+              : caseItem.vehicle_id,
+            regNumber: vehicleData?.registration_number || caseItem.vehicle_id,
+            priority: caseItem.severity || 'medium',
+            issue: caseItem.predicted_failure || 'Unknown issue',
+            estimatedTime: "2-4 hours",
+            urgency: Math.round((caseItem.confidence || 0) * 1.2),
+            aiPredicted: true,
+            aiConfidence: caseItem.confidence || null,
+            riskLevel: caseItem.severity === 'critical' ? 'High' : caseItem.severity === 'high' ? 'Medium' : 'Low',
+            vehicleData
+          } as PriorityVehicle
+        })
+      ).then(setPriorityVehicles)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "critical":
@@ -77,6 +165,17 @@ export default function PriorityVehicleQueue() {
         </Button>
       </CardHeader>
       <CardContent>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="animate-spin text-gray-400" size={24} />
+            <span className="ml-2 text-sm text-gray-600">Loading priority vehicles...</span>
+          </div>
+        ) : priorityVehicles.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <AlertTriangle size={48} className="mx-auto mb-2 text-gray-300" />
+            <p className="text-sm">No priority vehicles at this time</p>
+          </div>
+        ) : (
         <div className="space-y-3">
           {priorityVehicles.map((vehicle) => (
             <div
@@ -124,14 +223,17 @@ export default function PriorityVehicleQueue() {
             </div>
           ))}
         </div>
+        )}
+        {priorityVehicles.length > 0 && (
         <div className="mt-4 p-2.5 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg border border-red-100">
           <div className="flex items-center gap-2">
             <Brain size={14} className="text-red-600" />
             <p className="text-xs text-gray-700">
-              <span className="font-medium">AI Alert:</span> 2 vehicles flagged by predictive maintenance - schedule immediate inspection
+                <span className="font-medium">AI Alert:</span> {priorityVehicles.length} vehicle{priorityVehicles.length !== 1 ? 's' : ''} flagged by predictive maintenance - schedule immediate inspection
             </p>
           </div>
         </div>
+        )}
       </CardContent>
     </Card>
   )

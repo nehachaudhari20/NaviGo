@@ -8,35 +8,15 @@ import json
 import os
 import uuid
 import re
-import time
-import random
 from datetime import datetime
 from google.cloud import pubsub_v1, firestore, bigquery
 import functions_framework
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
-from google.api_core import exceptions
 
 # Vertex AI configuration
-# Read and validate environment variables
-PROJECT_ID_RAW = os.getenv("PROJECT_ID", "navigo-27206")
-LOCATION_RAW = os.getenv("LOCATION", "us-central1")
-
-# Clean and validate - remove any extra text that might have been concatenated
-PROJECT_ID = PROJECT_ID_RAW.strip().split()[0]  # Take only first word (in case "LOCATION=..." was appended)
-LOCATION = LOCATION_RAW.strip().split()[0]  # Take only first word
-
-# Additional validation - ensure PROJECT_ID doesn't contain "LOCATION"
-if "LOCATION" in PROJECT_ID.upper():
-    # Extract just the project ID part
-    PROJECT_ID = PROJECT_ID.split("LOCATION")[0].strip()
-if "=" in PROJECT_ID:
-    # If there's an equals sign, take only the part before it
-    PROJECT_ID = PROJECT_ID.split("=")[0].strip()
-
-# Debug logging (will be visible in Cloud Logs)
-print(f"DEBUG: PROJECT_ID_RAW={PROJECT_ID_RAW}, PROJECT_ID={PROJECT_ID}")
-print(f"DEBUG: LOCATION_RAW={LOCATION_RAW}, LOCATION={LOCATION}")
+PROJECT_ID = os.getenv("PROJECT_ID", "navigo-27206")
+LOCATION = os.getenv("LOCATION", "us-central1")
 
 # Pub/Sub configuration
 MANUFACTURING_TOPIC_NAME = "navigo-manufacturing-complete"
@@ -192,41 +172,16 @@ def manufacturing_agent(cloud_event):
     
     try:
         # 1. Parse Pub/Sub message
-        # For 2nd gen Cloud Functions, cloud_event.data can be:
-        # - A string (JSON string)
-        # - A dict (already parsed)
-        # - Base64 encoded in a "message" wrapper (legacy format)
-        
-        message_data = None
-        
         if isinstance(cloud_event.data, str):
-            try:
-                message_data = json.loads(cloud_event.data)
-            except json.JSONDecodeError:
-                # Might be base64 encoded
-                try:
-                    import base64
-                    decoded = base64.b64decode(cloud_event.data).decode("utf-8")
-                    message_data = json.loads(decoded)
-                except:
-                    print(f"Failed to parse cloud_event.data as JSON or base64: {cloud_event.data[:100]}")
-                    raise
-        elif isinstance(cloud_event.data, dict):
-            message_data = cloud_event.data
+            message_data = json.loads(cloud_event.data)
         else:
             message_data = cloud_event.data
         
-        # Handle legacy Pub/Sub message format (wrapped in "message" object)
-        if isinstance(message_data, dict) and "message" in message_data and "data" in message_data["message"]:
+        # Handle base64 encoded data
+        if "message" in message_data and "data" in message_data["message"]:
             import base64
-            try:
-                decoded = base64.b64decode(message_data["message"]["data"]).decode("utf-8")
-                if decoded:  # Only parse if decoded string is not empty
-                    message_data = json.loads(decoded)
-            except Exception as e:
-                print(f"Error decoding base64 message data: {e}")
-                # Try to use message_data as-is if decoding fails
-                pass
+            decoded = base64.b64decode(message_data["message"]["data"]).decode("utf-8")
+            message_data = json.loads(decoded)
         
         feedback_id = message_data.get("feedback_id")
         case_id = message_data.get("case_id")
@@ -264,13 +219,42 @@ def manufacturing_agent(cloud_event):
         # Count how many times this specific anomaly type occurred for this vehicle
         current_case_data = case_doc.to_dict()
         anomaly_type = current_case_data.get("anomaly_type")
-        component = current_case_data.get("component")
+        component = current_case_data.get("component")  # Try from anomaly case first
         
         recurrence_count = 0
         for case in all_cases:
             case_data = case.to_dict()
             if case_data.get("anomaly_type") == anomaly_type:
                 recurrence_count += 1
+        
+        # 4. Fetch RCA case to get root cause and component
+        # First try to get case_id from feedback if not in message
+        if not case_id:
+            case_id = feedback_data.get("case_id")
+        
+        if not case_id:
+            print("Missing case_id in message and feedback case")
+            return {"status": "error", "error": "Missing case_id"}
+        
+        # Find RCA case linked to this case_id
+        rca_query = db.collection("rca_cases").where("case_id", "==", case_id).limit(1).stream()
+        rca_cases = list(rca_query)
+        
+        if not rca_cases:
+            print(f"RCA case for case_id {case_id} not found")
+            return {"status": "error", "error": "RCA case not found"}
+        
+        rca_data = rca_cases[0].to_dict()
+        root_cause = rca_data.get("root_cause")
+        
+        # Get component from diagnosis case if available (more reliable than anomaly case)
+        diagnosis_id = rca_data.get("diagnosis_id")
+        if diagnosis_id:
+            diagnosis_ref = db.collection("diagnosis_cases").document(diagnosis_id)
+            diagnosis_doc = diagnosis_ref.get()
+            if diagnosis_doc.exists:
+                diagnosis_data = diagnosis_doc.to_dict()
+                component = diagnosis_data.get("component") or component  # Use diagnosis component if available
         
         # Calculate fleet-wide recurrence (across all vehicles) for better CAPA insights
         # This helps identify if it's a manufacturing batch issue
@@ -287,18 +271,6 @@ def manufacturing_agent(cloud_event):
         
         # Use the higher of fleet or component recurrence for cluster size estimation
         estimated_cluster_size = max(fleet_recurrence_count, component_recurrence_count, recurrence_count)
-        
-        # 4. Fetch RCA case to get root cause
-        # Find RCA case linked to this case_id
-        rca_query = db.collection("rca_cases").where("case_id", "==", case_id).limit(1).stream()
-        rca_cases = list(rca_query)
-        
-        if not rca_cases:
-            print(f"RCA case for case_id {case_id} not found")
-            return {"status": "error", "error": "RCA case not found"}
-        
-        rca_data = rca_cases[0].to_dict()
-        root_cause = rca_data.get("root_cause")
         
         # 5. Check for existing similar manufacturing cases to avoid duplicate CAPA
         existing_manufacturing_query = db.collection("manufacturing_cases").where("case_id", "==", case_id).limit(1).stream()
@@ -324,66 +296,16 @@ def manufacturing_agent(cloud_event):
             "component": component
         }
         
-        # 7. Initialize Vertex AI and call Gemini 2.5 Flash
-        # Validate PROJECT_ID and LOCATION before initialization
-        if not PROJECT_ID or " " in PROJECT_ID or "=" in PROJECT_ID:
-            raise ValueError(f"Invalid PROJECT_ID: '{PROJECT_ID}'. Must be a single word without spaces or equals signs.")
-        if not LOCATION or " " in LOCATION or "=" in LOCATION:
-            raise ValueError(f"Invalid LOCATION: '{LOCATION}'. Must be a single word without spaces or equals signs.")
-        
-        print(f"Initializing Vertex AI with project={PROJECT_ID}, location={LOCATION}")
+        # 8. Initialize Vertex AI and call Gemini 2.5 Flash
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         model = GenerativeModel("gemini-2.5-flash")
         
         prompt = f"{SYSTEM_PROMPT}\n\nGenerate CAPA insights for this issue:\n{json.dumps(input_data, default=str, indent=2)}\n\nReturn ONLY the JSON response matching the output format specified above."
         
-        # Add longer random delay (0-10 seconds) to spread out concurrent requests and reduce rate limiting
-        jitter = random.uniform(0, 10)
-        print(f"Adding {jitter:.2f}s jitter delay to spread out requests...")
-        time.sleep(jitter)
+        response = model.generate_content(prompt)
+        response_text = response.text
         
-        # Additional check: Before calling Gemini, verify no duplicate manufacturing case was created during jitter delay
-        quick_check = list(db.collection("manufacturing_cases")
-            .where("case_id", "==", case_id)
-            .limit(1).stream())
-        
-        if quick_check:
-            existing_manufacturing_id = quick_check[0].id
-            print(f"Skipping Gemini call for case {case_id} - duplicate manufacturing case {existing_manufacturing_id} detected after jitter delay")
-            existing_data = quick_check[0].to_dict()
-            return {
-                "status": "skipped",
-                "message": "Duplicate detected after jitter",
-                "manufacturing_id": existing_data.get("manufacturing_id")
-            }
-        
-        # Call Gemini with retry logic for rate limiting (429 errors)
-        max_retries = 5
-        retry_delay = 2  # Start with 2 seconds
-        response = None
-        response_text = None
-        
-        for attempt in range(max_retries):
-            try:
-                response = model.generate_content(prompt)
-                response_text = response.text
-                break  # Success, exit retry loop
-            except exceptions.ResourceExhausted as e:
-                if attempt < max_retries - 1:
-                    # Exponential backoff with jitter: 2s, 4s, 8s, 16s, 32s
-                    wait_time = retry_delay * (2 ** attempt) + random.uniform(0, 1)
-                    print(f"Rate limit hit (429), retrying in {wait_time:.2f}s (attempt {attempt + 1}/{max_retries})...")
-                    time.sleep(wait_time)
-                else:
-                    # Last attempt failed
-                    print(f"Rate limit error after {max_retries} attempts: {str(e)}")
-                    raise
-            except Exception as e:
-                # For other errors, don't retry
-                print(f"Error calling Gemini: {str(e)}")
-                raise
-        
-        # 8. Parse Gemini response
+        # 9. Parse Gemini response
         try:
             result = extract_json_from_response(response_text)
         except Exception as e:
@@ -391,19 +313,19 @@ def manufacturing_agent(cloud_event):
             print(f"Response text: {response_text}")
             raise ValueError(f"Invalid JSON response from Gemini: {e}")
         
-        # 9. Validate result matches schema
+        # 10. Validate result matches schema
         if result.get("vehicle_id") != vehicle_id:
             result["vehicle_id"] = vehicle_id
         
         manufacturing_id = f"manufacturing_{uuid.uuid4().hex[:10]}"
         
-        # 10. Calculate recurrence_cluster_size based on fleet data
+        # 11. Calculate recurrence_cluster_size based on fleet data
         # Use Gemini's estimate if provided, otherwise use calculated fleet recurrence
         recurrence_cluster_size = int(result.get("recurrence_cluster_size", estimated_cluster_size))
         if recurrence_cluster_size < 1:
             recurrence_cluster_size = max(1, estimated_cluster_size)
         
-        # 11. Prepare manufacturing data for Firestore
+        # 12. Prepare manufacturing data for Firestore
         manufacturing_data = {
             "manufacturing_id": manufacturing_id,
             "feedback_id": feedback_id,
@@ -421,32 +343,33 @@ def manufacturing_agent(cloud_event):
             "created_at": firestore.SERVER_TIMESTAMP
         }
         
-        # 12. Store in Firestore
+        # 13. Store in Firestore
         db.collection("manufacturing_cases").document(manufacturing_id).set(manufacturing_data)
         print(f"Created manufacturing case {manufacturing_id} for vehicle {vehicle_id}")
         
-        # 13. Update feedback case status
+        # 14. Update feedback case status
         feedback_ref.update({"status": "manufacturing_complete"})
         
-        # 14. Prepare BigQuery row and sync (non-blocking - don't fail if BigQuery fails)
-        try:
-            bq_row = prepare_bigquery_row(manufacturing_data)
-            bq_client = bigquery.Client()
-            table_ref = bq_client.dataset(DATASET_ID).table(TABLE_ID)
-            errors = bq_client.insert_rows_json(table_ref, [bq_row])
-            
-            if errors:
-                print(f"BigQuery insert errors: {errors}")
-            else:
-                print(f"Synced manufacturing case {manufacturing_id} to BigQuery")
-        except Exception as bq_error:
-            # Don't fail the entire function if BigQuery fails (table might not exist yet)
-            print(f"BigQuery sync failed (non-blocking): {str(bq_error)}. Continuing with Pub/Sub publish...")
+        # 15. Prepare BigQuery row
+        bq_row = prepare_bigquery_row(manufacturing_data)
         
-        # 15. Publish to Pub/Sub
+        # 16. Sync to BigQuery
+        bq_client = bigquery.Client()
+        table_ref = bq_client.dataset(DATASET_ID).table(TABLE_ID)
+        errors = bq_client.insert_rows_json(table_ref, [bq_row])
+        
+        if errors:
+            print(f"BigQuery insert errors: {errors}")
+        else:
+            print(f"Synced manufacturing case {manufacturing_id} to BigQuery")
+        
+        # 17. Publish to Pub/Sub
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(PROJECT_ID, MANUFACTURING_TOPIC_NAME)
         
+        # Include confidence and agent_stage for orchestrator
+        # Manufacturing doesn't have confidence, use default high confidence
+        confidence_score = 0.90
         pubsub_message = {
             "manufacturing_id": manufacturing_id,
             "feedback_id": feedback_id,
@@ -455,7 +378,9 @@ def manufacturing_agent(cloud_event):
             "issue": result.get("issue"),
             "capa_recommendation": result.get("capa_recommendation"),
             "severity": result.get("severity"),
-            "recurrence_cluster_size": result.get("recurrence_cluster_size")
+            "recurrence_cluster_size": recurrence_cluster_size,
+            "confidence": confidence_score,  # Add confidence for orchestrator
+            "agent_stage": "manufacturing"  # Explicitly set agent stage for orchestrator
         }
         
         message_bytes = json.dumps(pubsub_message).encode("utf-8")
@@ -497,22 +422,10 @@ def prepare_bigquery_row(manufacturing_data: dict) -> dict:
         
         value = manufacturing_data[key]
         
-        # Handle Firestore SERVER_TIMESTAMP (Sentinel object)
-        if key == "created_at":
-            # Check if it's a SERVER_TIMESTAMP Sentinel object
-            if value is firestore.SERVER_TIMESTAMP or (hasattr(value, "__class__") and "Sentinel" in str(type(value))):
-                from datetime import datetime, timezone
-                bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
-            elif hasattr(value, "timestamp"):
-                # Already a timestamp object
-                from datetime import timezone
-                bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
-            elif value is None:
-                # Skip None values
-                continue
-            else:
-                # Already a string or datetime
-                bq_row[bq_key] = value
+        # Handle Firestore SERVER_TIMESTAMP
+        if key == "created_at" and hasattr(value, "timestamp"):
+            from datetime import timezone
+            bq_row[bq_key] = datetime.now(timezone.utc).isoformat()
         elif value is None:
             continue
         else:

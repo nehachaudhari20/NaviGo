@@ -463,11 +463,16 @@ def data_analysis_agent(cloud_event):
             publisher = pubsub_v1.PublisherClient()
             topic_path = publisher.topic_path(PROJECT_ID, ANOMALY_TOPIC_NAME)
             
+            # Include agent_stage and confidence for orchestrator
+            confidence_score = 1.0 - severity_score  # Invert: lower severity = higher confidence
             pubsub_message = {
                 "case_id": case_id,
                 "vehicle_id": vehicle_id,
                 "anomaly_type": anomaly_type,
-                "severity_score": severity_score
+                "severity_score": severity_score,
+                "confidence": confidence_score,  # Add confidence for orchestrator
+                "agent_stage": "data_analysis",  # Explicitly set agent stage
+                "severity": "High" if severity_score > 0.7 else "Medium" if severity_score > 0.4 else "Low"
             }
             
             message_bytes = json.dumps(pubsub_message).encode("utf-8")

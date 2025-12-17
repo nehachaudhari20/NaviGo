@@ -1,13 +1,142 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Wrench, TrendingUp, DollarSign, Clock, MapPin, AlertCircle, Droplet } from "lucide-react"
+import { Calendar, Wrench, TrendingUp, DollarSign, Clock, MapPin, AlertCircle, Droplet, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { useAuth } from "@/contexts/auth-context"
+import { getCustomerVehicle, subscribeToVehicle, type VehicleData } from "@/lib/api/dashboard-data"
+import { getCustomerServiceHistory, type Booking } from "@/lib/api/dashboard-data"
+import { useAnomalyCases, useDiagnosisCases } from "@/hooks/use-agent-data"
+
+// Mock vehicle data for initial display
+const MOCK_VEHICLE: VehicleData = {
+  id: "mock-vehicle",
+  vehicle_id: "MH-07-AB-1234",
+  make: "Mahindra",
+  model: "XUV700",
+  year: 2023,
+  registration_number: "MH-07-AB-1234",
+  health_score: 87,
+  status: "Excellent",
+  mileage: 23450,
+  last_service_date: "2024-08-27"
+}
+
+const MOCK_BOOKINGS: Booking[] = [{
+  id: "mock-booking-1",
+  booking_id: "BK-001",
+  vehicle_id: "MH-07-AB-1234",
+  scheduled_date: "2024-08-27",
+  service_type: "Oil change & filter replacement",
+  status: "completed"
+}]
 
 export default function VehicleCard() {
-  const vehicle = {
+  const { user } = useAuth()
+  const vehicleId = user?.vehicleId || "MH-07-AB-1234"
+  const [vehicle, setVehicle] = useState<VehicleData | null>(MOCK_VEHICLE)
+  const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS)
+  const [loading, setLoading] = useState(false)
+  
+  // Get real-time anomaly and diagnosis cases to calculate health score
+  const { data: anomalyCases } = useAnomalyCases(vehicleId, true)
+  const { data: diagnosisCases } = useDiagnosisCases(undefined, vehicleId, true)
+
+  useEffect(() => {
+    // Fetch initial data
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const [vehicleData, serviceHistory] = await Promise.all([
+          getCustomerVehicle(vehicleId),
+          getCustomerServiceHistory(vehicleId, 1)
+        ])
+        
+        setVehicle(vehicleData)
+        setBookings(serviceHistory)
+      } catch (error) {
+        console.error('Error loading vehicle data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToVehicle(vehicleId, (vehicleData) => {
+      setVehicle(vehicleData)
+    })
+
+    return () => unsubscribe()
+  }, [vehicleId])
+  
+  // Calculate health score based on anomalies and diagnosis cases
+  const calculateHealthScore = (baseScore: number | undefined): number => {
+    if (!baseScore) baseScore = 100
+    
+    // Get active critical/high severity cases
+    const activeCriticalCases = diagnosisCases?.filter(
+      c => c.status === 'active' && (c.severity === 'critical' || c.severity === 'high')
+    ).length || 0
+    
+    const activeAnomalies = anomalyCases?.filter(
+      a => a.status === 'open' || a.status === 'pending_diagnosis'
+    ).length || 0
+    
+    // Reduce health score based on issues
+    let healthScore = baseScore
+    healthScore -= activeCriticalCases * 15 // -15 per critical/high case
+    healthScore -= activeAnomalies * 5 // -5 per active anomaly
+    healthScore = Math.max(0, Math.min(100, healthScore)) // Clamp between 0-100
+    
+    return Math.round(healthScore)
+  }
+
+  // Calculate health score once
+  const computedHealthScore = vehicle ? calculateHealthScore(vehicle.health_score) : 87
+  
+  // Fallback data if vehicle not loaded
+  const vehicleDisplay = vehicle ? {
+    id: vehicle.id,
+    name: vehicle.make && vehicle.model ? `${vehicle.make} ${vehicle.model}` : vehicle.vehicle_id,
+    variant: vehicle.model || "Standard",
+    year: vehicle.year || new Date().getFullYear(),
+    license: vehicle.registration_number || vehicle.vehicle_id,
+    image: "/mahindra-xev9e.png",
+    status: vehicle.status || (computedHealthScore >= 80 ? "Excellent" : computedHealthScore >= 60 ? "Good" : "Fair"),
+    healthScore: computedHealthScore,
+    mileage: vehicle.mileage ? `${vehicle.mileage.toLocaleString()} km` : "23,450 km",
+    lastService: bookings[0] ? {
+      date: bookings[0].scheduled_date ? new Date(bookings[0].scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "N/A",
+      type: bookings[0].service_type || "Regular maintenance",
+    } : {
+      date: "27 Aug 2024",
+      type: "Oil change & filter replacement",
+    },
+    nextService: {
+      date: "27 Feb 2025",
+      type: "Regular maintenance check",
+    },
+    totalServices: bookings.length,
+    annualCost: "₹3,567",
+    monthlyCost: "₹270",
+    upcoming: {
+      title: "Oil Change",
+      description: "Replacing the old engine oil and filter helps to keep the engine running smoothly and extend its lifespan. This routine maintenance ensures optimal engine performance, reduces wear and tear, and maintains your vehicle's warranty coverage.",
+      daysRemaining: 5,
+      dueDate: "Sep 15, 2024",
+      recommendedDate: "Sep 10, 2024",
+      estimatedCost: "₹800",
+      provider: "AutoCare Center",
+      progress: 85,
+      priority: "High",
+      duration: "30 mins",
+    },
+  } : {
     id: "mahindra-xev9e",
     name: "Mahindra XEV 9e",
     variant: "Elite Plus",
@@ -42,6 +171,17 @@ export default function VehicleCard() {
     },
   }
 
+  if (loading) {
+    return (
+      <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20 overflow-hidden">
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="animate-spin text-cyan-400" size={32} />
+          <span className="ml-3 text-slate-300">Loading vehicle data...</span>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="bg-slate-800/40 backdrop-blur-xl border-slate-700/30 shadow-2xl shadow-black/20 overflow-hidden">
       {/* Header Section */}
@@ -50,22 +190,22 @@ export default function VehicleCard() {
         <div>
             <CardTitle className="text-2xl text-slate-100 flex items-center gap-2">
               <Wrench className="text-cyan-400" size={24} />
-              {vehicle.name} - Maintenance Overview
+              {vehicleDisplay.name} - Maintenance Overview
             </CardTitle>
             <p className="text-sm text-slate-400 mt-1">
-              {vehicle.year} • {vehicle.variant} • License: {vehicle.license} • {vehicle.mileage}
+              {vehicleDisplay.year} • {vehicleDisplay.variant} • License: {vehicleDisplay.license} • {vehicleDisplay.mileage}
           </p>
         </div>
           <div className="flex items-center gap-3">
             <Badge className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/30 px-4 py-1.5">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="font-semibold">Status: {vehicle.status}</span>
+                <span className="font-semibold">Status: {vehicleDisplay.status}</span>
               </div>
             </Badge>
         <div className="text-right">
               <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Health Score</div>
-              <div className="text-2xl font-bold text-cyan-400">{vehicle.healthScore}/100</div>
+              <div className="text-2xl font-bold text-cyan-400">{vehicleDisplay.healthScore}/100</div>
             </div>
           </div>
         </div>
@@ -79,8 +219,8 @@ export default function VehicleCard() {
               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative flex items-center justify-center min-h-[280px]">
             <img
-              src={vehicle.image || "/placeholder.svg"}
-              alt={vehicle.name}
+              src={vehicleDisplay.image || "/placeholder.svg"}
+              alt={vehicleDisplay.name}
                   className="w-full h-auto object-contain rounded-lg shadow-2xl shadow-cyan-500/10 group-hover:scale-105 transition-transform duration-300"
             />
           </div>
@@ -105,8 +245,8 @@ export default function VehicleCard() {
                     </div>
                     <div className="flex-1">
                       <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Last Service</p>
-                      <p className="text-lg font-bold text-slate-100 mb-1">{vehicle.lastService.date}</p>
-                      <p className="text-xs text-slate-400">{vehicle.lastService.type}</p>
+                      <p className="text-lg font-bold text-slate-100 mb-1">{vehicleDisplay.lastService.date}</p>
+                      <p className="text-xs text-slate-400">{vehicleDisplay.lastService.type}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -120,7 +260,7 @@ export default function VehicleCard() {
                     </div>
                     <div className="flex-1">
                       <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Total Services</p>
-                      <p className="text-lg font-bold text-slate-100 mb-1">{vehicle.totalServices}</p>
+                      <p className="text-lg font-bold text-slate-100 mb-1">{vehicleDisplay.totalServices}</p>
                       <p className="text-xs text-slate-400">All preventive services</p>
                     </div>
                   </div>
@@ -137,7 +277,7 @@ export default function VehicleCard() {
                       <Wrench className="text-cyan-400" size={18} />
                       <span className="text-xs text-slate-400 uppercase tracking-wide">Total Services</span>
                     </div>
-                    <p className="text-2xl font-bold text-slate-100">{vehicle.totalServices}</p>
+                    <p className="text-2xl font-bold text-slate-100">{vehicleDisplay.totalServices}</p>
                     <div className="mt-2">
                       <Progress value={75} className="h-1.5" />
                     </div>
@@ -148,7 +288,7 @@ export default function VehicleCard() {
                       <DollarSign className="text-green-400" size={18} />
                       <span className="text-xs text-slate-400 uppercase tracking-wide">Annual Cost</span>
                     </div>
-                    <p className="text-2xl font-bold text-slate-100">{vehicle.annualCost}</p>
+                    <p className="text-2xl font-bold text-slate-100">{vehicleDisplay.annualCost}</p>
                     <div className="mt-2">
                       <Progress value={60} className="h-1.5" />
                     </div>
@@ -159,7 +299,7 @@ export default function VehicleCard() {
                       <TrendingUp className="text-yellow-400" size={18} />
                       <span className="text-xs text-slate-400 uppercase tracking-wide">Monthly Avg</span>
                     </div>
-                    <p className="text-2xl font-bold text-slate-100">{vehicle.monthlyCost}</p>
+                    <p className="text-2xl font-bold text-slate-100">{vehicleDisplay.monthlyCost}</p>
                     <div className="mt-2">
                       <Progress value={45} className="h-1.5" />
                     </div>
@@ -223,7 +363,7 @@ export default function VehicleCard() {
                             <div className="mt-3 pt-3 border-t border-slate-700/50">
                               <p className="text-xs text-slate-400 mb-1">Date</p>
                               <div className="flex items-center gap-2">
-                                <span className="text-lg font-bold text-green-400">{vehicle.upcoming.recommendedDate}</span>
+                                <span className="text-lg font-bold text-green-400">{vehicleDisplay.upcoming.recommendedDate}</span>
                                 <Badge className="bg-green-500/15 text-green-400 border-green-500/25 text-xs font-medium px-2 py-0.5">
                                   Recommended
                                 </Badge>
@@ -239,13 +379,13 @@ export default function VehicleCard() {
                       </div>
                       <div className="flex-1">
                         <h3 className="text-2xl font-bold text-slate-100 mb-2 flex items-center gap-2">
-                          {vehicle.upcoming.title}
+                          {vehicleDisplay.upcoming.title}
                           <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs font-semibold">
-                            {vehicle.upcoming.priority} Priority
+                            {vehicleDisplay.upcoming.priority} Priority
                           </Badge>
                         </h3>
                         <p className="text-sm text-slate-300 leading-relaxed">
-                          {vehicle.upcoming.description}
+                          {vehicleDisplay.upcoming.description}
                         </p>
                       </div>
                     </div>
@@ -260,19 +400,19 @@ export default function VehicleCard() {
                       <span className="text-sm text-slate-400 uppercase tracking-wide font-medium">Time Remaining</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold text-cyan-400">{vehicle.upcoming.daysRemaining}</span>
+                      <span className="text-2xl font-bold text-cyan-400">{vehicleDisplay.upcoming.daysRemaining}</span>
                       <span className="text-sm text-slate-400 font-medium">days</span>
                     </div>
                   </div>
                   <div className="w-full h-3 bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/50 shadow-inner">
                     <div
                       className="h-full bg-gradient-to-r from-cyan-500 via-cyan-400 to-cyan-500 transition-all duration-500 shadow-lg shadow-cyan-500/30"
-                      style={{ width: `${vehicle.upcoming.progress}%` }}
+                      style={{ width: `${vehicleDisplay.upcoming.progress}%` }}
                     />
                   </div>
                   <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
-                    <span>Due: {vehicle.upcoming.dueDate}</span>
-                    <span>{vehicle.upcoming.progress}% complete</span>
+                    <span>Due: {vehicleDisplay.upcoming.dueDate}</span>
+                    <span>{vehicleDisplay.upcoming.progress}% complete</span>
                   </div>
                 </div>
 
@@ -285,7 +425,7 @@ export default function VehicleCard() {
                       </div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Estimated Cost</p>
                     </div>
-                    <p className="text-xl font-bold text-slate-100 group-hover:text-green-400 transition-colors">{vehicle.upcoming.estimatedCost}</p>
+                    <p className="text-xl font-bold text-slate-100 group-hover:text-green-400 transition-colors">{vehicleDisplay.upcoming.estimatedCost}</p>
                     <p className="text-xs text-slate-500 mt-1">Inclusive of taxes</p>
                   </div>
 
@@ -296,7 +436,7 @@ export default function VehicleCard() {
                       </div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Service Provider</p>
                     </div>
-                    <p className="text-base font-bold text-slate-100 group-hover:text-blue-400 transition-colors">{vehicle.upcoming.provider}</p>
+                    <p className="text-base font-bold text-slate-100 group-hover:text-blue-400 transition-colors">{vehicleDisplay.upcoming.provider}</p>
                     <p className="text-xs text-slate-500 mt-1">Authorized center</p>
                   </div>
 
@@ -307,7 +447,7 @@ export default function VehicleCard() {
                       </div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Due Date</p>
                     </div>
-                    <p className="text-base font-bold text-slate-100 group-hover:text-yellow-400 transition-colors">{vehicle.upcoming.dueDate}</p>
+                    <p className="text-base font-bold text-slate-100 group-hover:text-yellow-400 transition-colors">{vehicleDisplay.upcoming.dueDate}</p>
                     <p className="text-xs text-slate-500 mt-1">Schedule before</p>
                   </div>
 
@@ -318,7 +458,7 @@ export default function VehicleCard() {
                       </div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Duration</p>
                     </div>
-                    <p className="text-base font-bold text-slate-100 group-hover:text-purple-400 transition-colors">{vehicle.upcoming.duration}</p>
+                    <p className="text-base font-bold text-slate-100 group-hover:text-purple-400 transition-colors">{vehicleDisplay.upcoming.duration}</p>
                     <p className="text-xs text-slate-500 mt-1">Estimated time</p>
                   </div>
                 </div>

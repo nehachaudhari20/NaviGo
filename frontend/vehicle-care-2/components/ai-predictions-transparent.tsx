@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,10 +15,14 @@ import {
   ChevronRight,
   Eye,
   HelpCircle,
-  Shield
+  Shield,
+  Loader2
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
 import ConfidenceIndicator from "@/components/service-center/confidence-indicator"
+import { getCustomerPredictions, type DiagnosisCase } from "@/lib/api/dashboard-data"
+import { useDiagnosisCases, useAnomalyCases } from "@/hooks/use-agent-data"
 
 interface AIPrediction {
   id: string
@@ -33,37 +38,159 @@ interface AIPrediction {
   dataSource?: string
 }
 
+const MOCK_PREDICTIONS: AIPrediction[] = [
+  {
+    id: "PRED-001",
+    component: "Brake Pads",
+    issueType: "Excessive Wear Detected",
+    predictedDate: "2024-09-18",
+    timeToFailure: "2-3 days",
+    severity: "critical",
+    confidence: 95,
+    recommendedAction: "Schedule brake pad replacement within 48 hours",
+    urgency: "High Priority",
+    reasoning: "Based on 3 similar vehicles showing brake pad wear at 85%",
+    dataSource: "Telematics data from last 30 days"
+  },
+  {
+    id: "PRED-002",
+    component: "Battery",
+    issueType: "Voltage Drop Pattern",
+    predictedDate: "2024-10-05",
+    timeToFailure: "30-35 days",
+    severity: "medium",
+    confidence: 78,
+    recommendedAction: "Schedule battery health check",
+    urgency: "Medium Priority",
+    reasoning: "Battery voltage showing gradual decline over past 2 weeks",
+    dataSource: "BMS telemetry data"
+  },
+  {
+    id: "PRED-003",
+    component: "Tire Pressure",
+    issueType: "Slow Leak Detected",
+    predictedDate: "2024-09-25",
+    timeToFailure: "5-7 days",
+    severity: "high",
+    confidence: 82,
+    recommendedAction: "Inspect and repair tire leak",
+    urgency: "High Priority",
+    reasoning: "Front right tire showing consistent pressure drop",
+    dataSource: "TPMS sensor data"
+  }
+]
+
 export default function AIPredictionsTransparent() {
   const router = useRouter()
+  const { user } = useAuth()
+  const vehicleId = user?.vehicleId || "MH-07-AB-1234"
+  const [predictions, setPredictions] = useState<AIPrediction[]>(MOCK_PREDICTIONS)
+  
+  // Use real-time subscription to diagnosis cases and anomaly cases
+  const { data: diagnosisCases, loading: diagnosisLoading } = useDiagnosisCases(undefined, vehicleId, true)
+  const { data: anomalyCases, loading: anomalyLoading } = useAnomalyCases(vehicleId, true)
+  const loading = diagnosisLoading || anomalyLoading
 
-  const predictions: AIPrediction[] = [
-    {
-      id: "PRED-001",
-      component: "Brake Pads",
-      issueType: "Excessive Wear Detected",
-      predictedDate: "2024-09-18",
-      timeToFailure: "2-3 days",
-      severity: "critical",
-      confidence: 95,
-      recommendedAction: "Schedule brake pad replacement within 48 hours",
-      urgency: "High Priority",
-      reasoning: "Based on 3 similar vehicles showing brake pad wear at 85%",
-      dataSource: "Telematics data from last 30 days"
-    },
-    {
-      id: "PRED-002",
-      component: "Battery",
-      issueType: "Degradation Pattern",
-      predictedDate: "2024-10-15",
-      timeToFailure: "30-35 days",
-      severity: "medium",
-      confidence: 82,
-      recommendedAction: "Schedule battery health check in next 2 weeks",
-      urgency: "Medium Priority",
-      reasoning: "Voltage readings indicate 78% capacity remaining",
-      dataSource: "OBD-II sensor data"
-    },
-  ]
+  useEffect(() => {
+    // Combine diagnosis cases and anomaly cases
+    const allCases: any[] = []
+    
+    // Add diagnosis cases (active status)
+    if (diagnosisCases && diagnosisCases.length > 0) {
+      const activeDiagnosis = diagnosisCases.filter(c => c.status === 'active')
+      allCases.push(...activeDiagnosis.map(c => ({ ...c, source: 'diagnosis' })))
+    }
+    
+    // Add anomaly cases (pending_diagnosis or diagnosing status)
+    if (anomalyCases && anomalyCases.length > 0) {
+      const pendingAnomalies = anomalyCases.filter(c => 
+        c.status === 'pending_diagnosis' || c.status === 'diagnosing'
+      )
+      allCases.push(...pendingAnomalies.map(c => ({ ...c, source: 'anomaly' })))
+    }
+    
+    if (allCases.length === 0) {
+      setPredictions(MOCK_PREDICTIONS)
+      return
+    }
+    
+    // Transform to AIPrediction format
+    const transformed = allCases.map((caseItem) => {
+      const createdDate = caseItem.created_at 
+        ? (typeof caseItem.created_at === 'string' ? new Date(caseItem.created_at) : caseItem.created_at.toDate())
+        : new Date()
+      
+      // Calculate predicted date based on RUL if available
+      const estimatedRulDays = (caseItem as any).estimated_rul_days || 7
+      const predictedDate = new Date(createdDate.getTime() + estimatedRulDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      
+      // Handle both diagnosis cases and anomaly cases
+      const isAnomaly = caseItem.source === 'anomaly'
+      const anomalyType = isAnomaly ? caseItem.anomaly_type : null
+      const severityScore = isAnomaly ? caseItem.severity_score : null
+      
+      // Map anomaly type to component
+      const componentMap: Record<string, string> = {
+        'thermal_overheat': 'Engine Coolant System',
+        'oil_overheat': 'Engine Oil System',
+        'battery_degradation': 'Battery',
+        'low_charge': 'Battery',
+        'rpm_spike': 'Engine',
+        'rpm_stall': 'Engine',
+        'dtc_fault': 'Diagnostic System',
+        'speed_anomaly': 'Transmission',
+        'gps_anomaly': 'GPS System'
+      }
+      
+      const component = caseItem.component || (anomalyType ? componentMap[anomalyType] : 'Component')
+      const issueType = caseItem.predicted_failure || 
+                       (anomalyType ? `${component} anomaly detected` : 
+                        caseItem.component ? `${caseItem.component} failure` : "Issue detected")
+      
+      // Calculate confidence from severity_score for anomalies
+      let confidence = 0
+      if (isAnomaly && severityScore !== null) {
+        // Convert severity_score (0-1) to confidence percentage
+        // Lower severity = higher confidence (inverted)
+        confidence = Math.round((1 - severityScore) * 100)
+      } else {
+        confidence = caseItem.confidence || caseItem.confidence_score || caseItem.failure_probability 
+          ? Math.round((caseItem.confidence || caseItem.confidence_score || caseItem.failure_probability) * 100) 
+          : 0
+      }
+      
+      // Map severity_score to severity level for anomalies
+      let severity: "critical" | "high" | "medium" | "low" = 'medium'
+      if (isAnomaly && severityScore !== null) {
+        if (severityScore >= 0.7) severity = 'critical'
+        else if (severityScore >= 0.4) severity = 'high'
+        else if (severityScore >= 0.1) severity = 'medium'
+        else severity = 'low'
+      } else {
+        severity = (caseItem.severity?.toLowerCase() || 'medium') as "critical" | "high" | "medium" | "low"
+      }
+      
+      return {
+        id: caseItem.case_id || caseItem.id || caseItem.diagnosis_id || caseItem.anomaly_id,
+        component,
+        issueType,
+        predictedDate,
+        timeToFailure: caseItem.estimated_rul_days 
+          ? `${caseItem.estimated_rul_days} day${caseItem.estimated_rul_days !== 1 ? 's' : ''}`
+          : severity === 'critical' ? "2-3 days" : severity === 'high' ? "5-7 days" : "30-35 days",
+        severity,
+        confidence,
+        recommendedAction: `Schedule ${component} inspection`,
+        urgency: severity === 'critical' ? "High Priority" : severity === 'high' ? "Medium Priority" : "Low Priority",
+        reasoning: isAnomaly 
+          ? `Anomaly detected: ${anomalyType || 'unknown'} (${confidence}% confidence)`
+          : `Based on ${confidence}% confidence prediction`,
+        dataSource: isAnomaly ? "Real-time telemetry analysis" : "Telematics and diagnostic data"
+      } as AIPrediction
+    })
+    
+    setPredictions(transformed)
+  }, [diagnosisCases, anomalyCases])
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -108,6 +235,18 @@ export default function AIPredictionsTransparent() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="animate-spin text-cyan-400" size={32} />
+            <span className="ml-3 text-slate-300">Loading predictions...</span>
+          </div>
+        ) : predictions.length === 0 ? (
+          <div className="text-center py-12 text-slate-400">
+            <Brain size={48} className="mx-auto mb-4 text-slate-600" />
+            <p className="text-sm">No active predictions at this time</p>
+          </div>
+        ) : (
+          <>
         {predictions.map((prediction) => (
           <div
             key={prediction.id}
@@ -232,6 +371,8 @@ export default function AIPredictionsTransparent() {
             <ChevronRight size={12} className="ml-1.5" />
           </Button>
         </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )

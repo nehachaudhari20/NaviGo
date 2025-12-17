@@ -2698,26 +2698,33 @@ UEBA Dashboard (/analytics)
 - [ ] **Test manufacturing feedback loop end-to-end** (NEW)
 
 ### Frontend Integration
-- [ ] Create `lib/api-client.ts` with API client class
-- [ ] Create `lib/firestore-listeners.ts` with listener utilities
-- [ ] Initialize Firebase SDK in `lib/firebase.ts`
-- [ ] Add Firestore listeners to Customer Dashboard
-- [ ] Add Firestore listeners to Service Center Dashboard
-- [ ] Add Firestore listeners to Manufacturer Dashboard
-- [ ] **Update Manufacturer Dashboard with real-time CAPA feed** (NEW)
-- [ ] **Replace mock data in `capa-feedback.tsx` with Firestore listener** (NEW)
-- [ ] **Replace mock data in `failure-patterns.tsx` with Firestore listener** (NEW)
-- [ ] **Add fleet-wide pattern visualization** (NEW)
-- [ ] **Add predicted vs actual failure comparison charts** (NEW)
-- [ ] **Add design improvement priority queue** (NEW)
-- [ ] **Add CAPA implementation tracking UI** (NEW)
-- [ ] Add feedback submission form in Servicing page
-- [ ] Add human review queue UI with approve/reject actions
-- [ ] Add real-time telemetry monitoring component
-- [ ] Add pipeline state visualization
-- [ ] **Integrate UEBA tracking for communication agent calls** (NEW)
-- [ ] **Add communication call logs to Service Center dashboard** (NEW)
-- [ ] **Display UEBA analytics in Agentic AI dashboard** (NEW)
+- [x] Create `lib/api-client.ts` with API client class (✅ **DONE** - Using `lib/api/` structure with `config.ts`, `agents.ts`, `dashboard-data.ts`, `firestore.ts`)
+- [x] Create `lib/firestore-listeners.ts` with listener utilities (✅ **DONE** - Implemented in `lib/api/dashboard-data.ts` with `subscribeToVehicle`, `subscribeToHumanReviews`, `subscribeToPriorityVehicles`, etc.)
+- [x] Initialize Firebase SDK in `lib/firebase.ts` (✅ **DONE** - Initialized in `lib/api/firestore.ts`)
+- [x] Add Firestore listeners to Customer Dashboard (✅ **DONE** - `vehicle-card.tsx`, `service-history.tsx`, `ai-predictions-transparent.tsx` all use real-time Firestore subscriptions)
+- [x] Add Firestore listeners to Service Center Dashboard (✅ **DONE** - `priority-vehicle-queue.tsx`, `human-review-queue.tsx` use real-time subscriptions)
+- [ ] Add Firestore listeners to Manufacturer Dashboard (⚠️ **PARTIAL** - `kpi-cards.tsx` exists but needs verification)
+- [ ] **Update Manufacturer Dashboard with real-time CAPA feed** (NEW) (❌ **PENDING**)
+- [ ] **Replace mock data in `capa-feedback.tsx` with Firestore listener** (NEW) (❌ **PENDING** - Still using `mockCAPAFeedback`)
+- [ ] **Replace mock data in `failure-patterns.tsx` with Firestore listener** (NEW) (❌ **PENDING** - Needs verification)
+- [ ] **Add fleet-wide pattern visualization** (NEW) (❌ **PENDING**)
+- [ ] **Add predicted vs actual failure comparison charts** (NEW) (❌ **PENDING**)
+- [ ] **Add design improvement priority queue** (NEW) (❌ **PENDING**)
+- [ ] **Add CAPA implementation tracking UI** (NEW) (❌ **PENDING**)
+- [x] Add feedback submission form in Servicing page (✅ **DONE** - `feedback-validation.tsx` uses `submitFeedback` API)
+- [x] Add human review queue UI with approve/reject actions (✅ **DONE** - `human-review-queue.tsx` uses `updateHumanReview` API and real-time subscriptions)
+- [ ] Add real-time telemetry monitoring component (⚠️ **PARTIAL** - Component exists but needs verification if using real data)
+- [ ] Add pipeline state visualization (⚠️ **PARTIAL** - `ai-control-centre.tsx` exists but uses mock data)
+- [ ] **Integrate UEBA tracking for communication agent calls** (NEW) (❌ **PENDING**)
+- [ ] **Add communication call logs to Service Center dashboard** (NEW) (❌ **PENDING**)
+- [ ] **Display UEBA analytics in Agentic AI dashboard** (NEW) (❌ **PENDING**)
+
+**Frontend Integration Status Summary (Updated: 2024-12-15):**
+- ✅ **API Infrastructure**: Complete - `lib/api/` structure with `config.ts`, `agents.ts`, `dashboard-data.ts`, `firestore.ts`
+- ✅ **Customer Dashboard**: Complete - All components (`vehicle-card.tsx`, `service-history.tsx`, `ai-predictions-transparent.tsx`) use real-time Firestore subscriptions
+- ✅ **Service Center Dashboard**: Complete - Priority queue, human review queue, and feedback validation all connected to backend APIs
+- ⚠️ **Manufacturer Dashboard**: Partial - KPI cards exist but CAPA feedback and failure patterns still use mock data
+- ❌ **Advanced Features**: Pending - Fleet-wide patterns, predicted vs actual charts, design improvement queue, CAPA tracking, UEBA integration for communication agent
 
 ### Testing
 - [ ] Test telemetry ingestion endpoint

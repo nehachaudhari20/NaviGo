@@ -414,15 +414,19 @@ def rca_agent(cloud_event):
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(PROJECT_ID, RCA_TOPIC_NAME)
         
+        # Include confidence and agent_stage for orchestrator
+        confidence_score = float(result.get("confidence", 0.0))
         pubsub_message = {
             "rca_id": rca_id,
             "diagnosis_id": diagnosis_id,
             "case_id": case_id,
             "vehicle_id": vehicle_id,
             "root_cause": result.get("root_cause"),
-            "confidence": result.get("confidence"),
+            "confidence": confidence_score,  # Add confidence for orchestrator
+            "confidence_score": confidence_score,  # Alternative field name
             "recommended_action": result.get("recommended_action"),
-            "capa_type": result.get("capa_type")
+            "capa_type": result.get("capa_type"),
+            "agent_stage": "rca"  # Explicitly set agent stage for orchestrator
         }
         
         message_bytes = json.dumps(pubsub_message).encode("utf-8")

@@ -10,8 +10,10 @@ import {
   XCircle,
   Eye,
   ChevronRight,
-  Filter
+  Filter,
+  Loader2
 } from "lucide-react"
+import { useEffect } from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
@@ -93,8 +95,95 @@ export default function HumanReviewQueue() {
   const router = useRouter()
   const [filter, setFilter] = useState<"all" | "critical" | "high" | "medium">("all")
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
+  const [reviewItems, setReviewItems] = useState<ReviewItem[]>(mockReviewItems)
+  const [loading, setLoading] = useState(false)
 
-  const filteredItems = mockReviewItems.filter(item => {
+  useEffect(() => {
+    // Fetch initial data
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const { getHumanReviewQueue, subscribeToHumanReviews, getCustomerVehicle } = await import('@/lib/api/dashboard-data')
+        const reviews = await getHumanReviewQueue(20)
+        
+        // Transform to ReviewItem format
+        const items = await Promise.all(
+          reviews.map(async (review) => {
+            const vehicleData = await getCustomerVehicle(review.vehicle_id)
+            const createdAt = review.created_at?.toDate() || new Date()
+            const hoursAgo = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60))
+            
+            return {
+              id: review.review_id || review.id,
+              vehicle: vehicleData?.make && vehicleData?.model 
+                ? `${vehicleData.make} ${vehicleData.model}` 
+                : review.vehicle_id,
+              regNumber: vehicleData?.registration_number || review.vehicle_id,
+              owner: vehicleData?.owner_name || 'Unknown',
+              component: 'Component', // Could be extracted from prediction data
+              issueType: 'Prediction Review',
+              confidence: review.confidence || 0,
+              severity: review.severity || 'medium',
+              predictedDate: new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              timeToFailure: '7-10 days',
+              createdAt: hoursAgo > 0 ? `${hoursAgo} hour${hoursAgo !== 1 ? 's' : ''} ago` : 'Just now',
+              predictionId: review.prediction_id || review.id
+            } as ReviewItem
+          })
+        )
+        
+        // Only update if we got real data, otherwise keep mock data
+        if (items.length > 0) {
+          setReviewItems(items)
+        }
+      } catch (error) {
+        console.error('Error loading human reviews:', error)
+        // Keep mock data on error
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+
+    // Subscribe to real-time updates
+    const { subscribeToHumanReviews } = require('@/lib/api/dashboard-data')
+    const unsubscribe = subscribeToHumanReviews(async (reviews) => {
+      const { getCustomerVehicle } = await import('@/lib/api/dashboard-data')
+      const items = await Promise.all(
+        reviews.map(async (review) => {
+          const vehicleData = await getCustomerVehicle(review.vehicle_id)
+          const createdAt = review.created_at?.toDate() || new Date()
+          const hoursAgo = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60))
+          
+          return {
+            id: review.review_id || review.id,
+            vehicle: vehicleData?.make && vehicleData?.model 
+              ? `${vehicleData.make} ${vehicleData.model}` 
+              : review.vehicle_id,
+            regNumber: vehicleData?.registration_number || review.vehicle_id,
+            owner: vehicleData?.owner_name || 'Unknown',
+            component: 'Component',
+            issueType: 'Prediction Review',
+            confidence: review.confidence || 0,
+            severity: review.severity || 'medium',
+            predictedDate: new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            timeToFailure: '7-10 days',
+            createdAt: hoursAgo > 0 ? `${hoursAgo} hour${hoursAgo !== 1 ? 's' : ''} ago` : 'Just now',
+            predictionId: review.prediction_id || review.id
+          } as ReviewItem
+        })
+      )
+      // Only update if we got real data, otherwise keep mock data
+      if (items.length > 0) {
+        setReviewItems(items)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const filteredItems = reviewItems.filter(item => {
     if (filter === "all") return true
     return item.severity === filter
   })
@@ -125,19 +214,70 @@ export default function HumanReviewQueue() {
     router.push(`/service-center/predictive-maintenance?predictionId=${item.predictionId}`)
   }
 
-  const handleApprove = (id: string) => {
-    // TODO: API call to approve prediction
-    console.log("Approve:", id)
+  const [processing, setProcessing] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleApprove = async (id: string) => {
+    setProcessing(id)
+    setError(null)
+    
+    try {
+      const { updateHumanReview } = await import('@/lib/api/agents')
+      
+      const result = await updateHumanReview({
+        reviewId: id,
+        decision: 'approved',
+        notes: 'Approved by service center staff'
+      })
+      
+      if (result.status === 'success') {
+        // Remove from list or update status
+        console.log('Review approved:', id)
+        // You can update the UI here or refetch data
+        window.location.reload() // Simple refresh for now
+      } else {
+        setError(result.error || 'Failed to approve review')
+      }
+    } catch (err) {
+      console.error('Approve review error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to approve review')
+    } finally {
+      setProcessing(null)
+    }
   }
 
-  const handleReject = (id: string) => {
-    // TODO: API call to reject prediction
-    console.log("Reject:", id)
+  const handleReject = async (id: string) => {
+    setProcessing(id)
+    setError(null)
+    
+    try {
+      const { updateHumanReview } = await import('@/lib/api/agents')
+      
+      const result = await updateHumanReview({
+        reviewId: id,
+        decision: 'rejected',
+        notes: 'Rejected by service center staff'
+      })
+      
+      if (result.status === 'success') {
+        console.log('Review rejected:', id)
+        window.location.reload() // Simple refresh for now
+      } else {
+        setError(result.error || 'Failed to reject review')
+      }
+    } catch (err) {
+      console.error('Reject review error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to reject review')
+    } finally {
+      setProcessing(null)
+    }
   }
 
-  const handleRequestMoreInfo = (id: string) => {
-    // TODO: API call to request more info
+  const handleRequestMoreInfo = async (id: string) => {
+    // This could trigger a notification or create a task
     console.log("Request more info:", id)
+    // TODO: Implement request more info endpoint if needed
+    alert('More information requested. This will be implemented in a future update.')
   }
 
   return (
@@ -185,6 +325,12 @@ export default function HumanReviewQueue() {
         </p>
       </CardHeader>
       <CardContent>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="animate-spin text-gray-400" size={24} />
+            <span className="ml-2 text-sm text-gray-600">Loading review queue...</span>
+          </div>
+        ) : (
         <div className="space-y-3 max-h-[500px] overflow-y-auto">
           {sortedItems.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -249,9 +395,19 @@ export default function HumanReviewQueue() {
                       e.stopPropagation()
                       handleApprove(item.id)
                     }}
+                    disabled={processing === item.id}
                   >
+                    {processing === item.id ? (
+                      <>
+                        <Loader2 size={12} className="mr-1.5 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
                     <CheckCircle2 size={12} className="mr-1.5" />
                     Approve
+                      </>
+                    )}
                   </Button>
                   <Button
                     size="sm"
@@ -261,15 +417,31 @@ export default function HumanReviewQueue() {
                       e.stopPropagation()
                       handleReject(item.id)
                     }}
+                    disabled={processing === item.id}
                   >
+                    {processing === item.id ? (
+                      <>
+                        <Loader2 size={12} className="mr-1.5 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
                     <XCircle size={12} className="mr-1.5" />
                     Reject
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
             ))
           )}
         </div>
+        )}
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-xs text-red-700">{error}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

@@ -13,12 +13,14 @@ import functions_framework
 # Project configuration
 PROJECT_ID = os.getenv("PROJECT_ID", "navigo-27206")
 
-# Orchestrator topic (all agents publish here)
-ORCHESTRATOR_TOPIC = "navigo-orchestrator"
+# Orchestrator subscribes to anomaly-detected topic (from data_analysis_agent)
+# Note: According to flow, data_analysis_agent publishes to navigo-anomaly-detected
+ORCHESTRATOR_INPUT_TOPIC = "navigo-anomaly-detected"
 
 # Agent input topics (orchestrator routes to these)
+# Note: Some agents subscribe directly to their input topics, others need routing
 AGENT_INPUT_TOPICS = {
-    "diagnosis": "navigo-anomaly-detected",
+    "diagnosis": "navigo-anomaly-detected",  # Diagnosis agent subscribes to this topic
     "rca": "navigo-diagnosis-complete",
     "scheduling": "navigo-rca-complete",
     "engagement": "navigo-scheduling-complete",
@@ -168,12 +170,15 @@ def master_orchestrator(cloud_event):
             print(f"Confidence {confidence} below threshold {CONFIDENCE_THRESHOLD}, routing to human review")
             
             human_review_data = {
+                "review_id": f"{case_id}_{agent_stage}",
                 "case_id": case_id,
                 "vehicle_id": vehicle_id,
                 "agent_stage": agent_stage,
                 "confidence": confidence,
+                "severity": message_data.get("severity") or message_data.get("severity_score", 0.5),
+                "prediction_id": case_id,  # For frontend compatibility
+                "review_status": "pending",  # Frontend expects 'review_status' not 'status'
                 "message_data": message_data,
-                "status": "pending_review",
                 "created_at": firestore.SERVER_TIMESTAMP
             }
             

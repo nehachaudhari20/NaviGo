@@ -231,8 +231,9 @@ def communication_agent(cloud_event):
             return {"status": "error", "error": "Vehicle not found"}
         
         vehicle_data = vehicle_doc.to_dict()
-        customer_phone = vehicle_data.get("owner_phone") or vehicle_data.get("phone")
-        customer_name = vehicle_data.get("owner_name") or vehicle_data.get("name") or "Customer"
+        # Use phone/name from message if available, otherwise from vehicle data
+        customer_phone = customer_phone or vehicle_data.get("owner_phone") or vehicle_data.get("phone")
+        customer_name = customer_name or vehicle_data.get("owner_name") or vehicle_data.get("name") or "Customer"
         
         if not customer_phone:
             print(f"Customer phone not found for vehicle {vehicle_id}")
@@ -385,6 +386,10 @@ def communication_agent(cloud_event):
             
             # Store in a temporary collection for webhook lookup
             db.collection("call_contexts").document(call_sid).set(call_context)
+            
+            # Note: Actual call completion and publishing to navigo-communication-complete
+            # will be handled by the Twilio webhook (twilio_webhook function)
+            # when the call status changes to "completed"
             
             return {
                 "status": "success",

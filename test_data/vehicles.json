@@ -1,0 +1,31 @@
+[
+  {
+    "vehicle_id": "MH-07-AB-1234",
+    "owner_name": "Swaroop Thakare",
+    "owner_phone": "+919876543210",
+    "name": "Swaroop Thakare",
+    "phone": "+919876543210",
+    "model": "Nexon",
+    "year": 2022,
+    "make": "Tata",
+    "registration_number": "MH-07-AB-1234",
+    "registration_date": "2022-01-15",
+    "last_service_date": "2024-11-20",
+    "service_history_count": 5
+  },
+  {
+    "vehicle_id": "MH-07-CD-5678",
+    "owner_name": "Neha Chaudhari",
+    "owner_phone": "+919988776655",
+    "name": "Neha Chaudhari",
+    "phone": "+919988776655",
+    "model": "Creta",
+    "year": 2023,
+    "make": "Hyundai",
+    "registration_number": "MH-07-CD-5678",
+    "registration_date": "2023-03-10",
+    "last_service_date": "2024-10-15",
+    "service_history_count": 3
+  }
+]
+

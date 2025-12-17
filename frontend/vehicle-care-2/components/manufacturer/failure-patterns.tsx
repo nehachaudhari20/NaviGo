@@ -13,7 +13,8 @@ import {
   Lightbulb,
   Target
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useManufacturingCases } from "@/hooks/use-agent-data"
 import {
   Select,
   SelectContent,
@@ -117,27 +118,77 @@ const mockFailurePatterns: FailurePattern[] = [
   },
 ]
 
-const timeToFailureData = mockFailurePatterns.map(pattern => ({
-  component: pattern.component,
-  days: pattern.avgTimeToFailure,
-  failureRate: pattern.failureRate,
-}))
-
-// Transform data for grouped bar chart
-const batchComparisonData = mockFailurePatterns.map(pattern => ({
-  component: pattern.component,
-  "Batch 1": pattern.batchComparison.batch1,
-  "Batch 2": pattern.batchComparison.batch2,
-  "Batch 3": pattern.batchComparison.batch3,
-}))
+// Chart data will be computed from real patterns
 
 export default function FailurePatterns() {
   const [selectedComponent, setSelectedComponent] = useState<string>("all")
   const [viewMode, setViewMode] = useState<"overview" | "detailed">("overview")
+  
+  // Fetch real manufacturing cases data
+  const { data: manufacturingCases, loading } = useManufacturingCases(undefined, true)
+  
+  // Transform manufacturing cases to failure patterns
+  const realPatterns: FailurePattern[] = manufacturingCases && manufacturingCases.length > 0
+    ? manufacturingCases.map((caseItem: any) => {
+        const component = caseItem.component || 'Unknown Component'
+        const defectPattern = caseItem.defect_pattern || caseItem.issue || caseItem.root_cause || 'Unknown pattern'
+        // Manufacturing agent stores capa_recommendation (singular), but interface may have plural
+        const capaRecommendation = caseItem.capa_recommendation || caseItem.capa_recommendations || ''
+        const capaRecommendations = capaRecommendation
+          ? (typeof capaRecommendation === 'string' 
+              ? [capaRecommendation] 
+              : Array.isArray(capaRecommendation) ? capaRecommendation : [])
+          : []
+        
+        // Calculate failure rate from recurrence_cluster_size or affected_vehicles
+        const clusterSize = caseItem.recurrence_cluster_size || caseItem.affected_vehicles || 1
+        const failureRate = Math.min(100, (clusterSize / 10) * 5) // Estimate: 5% per 10 vehicles
+        
+        // Determine trend based on recurrence or severity
+        const recurrenceCount = caseItem.recurrence_count || 0
+        const severity = caseItem.severity?.toLowerCase() || ''
+        const trend: "improving" | "stable" | "worsening" = 
+          recurrenceCount >= 3 || severity === 'high' ? "worsening" :
+          recurrenceCount === 2 || severity === 'medium' ? "stable" : "improving"
+        
+        return {
+          component,
+          failureRate,
+          avgTimeToFailure: 30, // Could be calculated from RUL data
+          batchComparison: {
+            batch1: failureRate * 1.2,
+            batch2: failureRate,
+            batch3: failureRate * 0.8,
+          },
+          designFlaws: defectPattern ? [defectPattern] : [],
+          recommendations: capaRecommendations.length > 0 
+            ? capaRecommendations 
+            : ['No recommendations available'],
+          trend
+        }
+      })
+    : []
 
+  // Use real data if available, otherwise fall back to mock
+  const allPatterns = realPatterns.length > 0 ? realPatterns : mockFailurePatterns
+  
   const filteredPatterns = selectedComponent === "all"
-    ? mockFailurePatterns
-    : mockFailurePatterns.filter(p => p.component === selectedComponent)
+    ? allPatterns
+    : allPatterns.filter(p => p.component === selectedComponent)
+  
+  // Compute chart data from filtered patterns
+  const timeToFailureData = filteredPatterns.map(pattern => ({
+    component: pattern.component,
+    days: pattern.avgTimeToFailure,
+    failureRate: pattern.failureRate,
+  }))
+  
+  const batchComparisonData = filteredPatterns.map(pattern => ({
+    component: pattern.component,
+    "Batch 1": pattern.batchComparison.batch1,
+    "Batch 2": pattern.batchComparison.batch2,
+    "Batch 3": pattern.batchComparison.batch3,
+  }))
 
   const getTrendColor = (trend: string) => {
     switch (trend) {
@@ -175,7 +226,9 @@ export default function FailurePatterns() {
           </CardHeader>
           <CardContent className="relative z-10">
             <div className="text-2xl font-bold text-white mb-1">
-              {(mockFailurePatterns.reduce((sum, p) => sum + p.failureRate, 0) / mockFailurePatterns.length).toFixed(1)}%
+              {filteredPatterns.length > 0
+                ? (filteredPatterns.reduce((sum, p) => sum + p.failureRate, 0) / filteredPatterns.length).toFixed(1)
+                : "0.0"}%
             </div>
             <div className="text-xs text-gray-400">Across All Components</div>
           </CardContent>
@@ -191,7 +244,7 @@ export default function FailurePatterns() {
           </CardHeader>
           <CardContent className="relative z-10">
             <div className="text-2xl font-bold text-green-400 mb-1">
-              {mockFailurePatterns.filter(p => p.trend === "improving").length}
+              {filteredPatterns.filter(p => p.trend === "improving").length}
             </div>
             <div className="text-xs text-gray-400">Components</div>
           </CardContent>
@@ -207,7 +260,7 @@ export default function FailurePatterns() {
           </CardHeader>
           <CardContent className="relative z-10">
             <div className="text-2xl font-bold text-red-400 mb-1">
-              {mockFailurePatterns.filter(p => p.trend === "worsening").length}
+              {filteredPatterns.filter(p => p.trend === "worsening").length}
             </div>
             <div className="text-xs text-gray-400">Components</div>
           </CardContent>
@@ -223,7 +276,7 @@ export default function FailurePatterns() {
           </CardHeader>
           <CardContent className="relative z-10">
             <div className="text-2xl font-bold text-white mb-1">
-              {mockFailurePatterns.reduce((sum, p) => sum + p.recommendations.length, 0)}
+              {filteredPatterns.reduce((sum, p) => sum + p.recommendations.length, 0)}
             </div>
             <div className="text-xs text-gray-400">Total Actions</div>
           </CardContent>
@@ -242,7 +295,7 @@ export default function FailurePatterns() {
               </SelectTrigger>
               <SelectContent className="bg-white/10 backdrop-blur-2xl border-white/10">
                 <SelectItem value="all">All Components</SelectItem>
-                {mockFailurePatterns.map((pattern) => (
+                {filteredPatterns.map((pattern) => (
                   <SelectItem key={pattern.component} value={pattern.component}>
                     {pattern.component}
                   </SelectItem>

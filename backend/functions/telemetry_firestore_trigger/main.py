@@ -8,8 +8,8 @@ import json
 import base64
 from google.cloud import pubsub_v1
 from google.cloud import bigquery
-from google.cloud import firestore
 import functions_framework
+from google.events.cloud import firestore
 
 # Project and topic configuration
 PROJECT_ID = "navigo-27206"
@@ -33,86 +33,122 @@ def telemetry_firestore_trigger(cloud_event):
         # For Firestore triggers via Eventarc, data comes as protobuf-encoded bytes
         # We need to decode it using DocumentEventData
         
-        # 1. Extract document ID directly from protobuf bytes
-        # For 2nd gen Firestore triggers, data comes as protobuf-encoded bytes
-        # The document ID (event_id) is embedded in the protobuf structure
-        doc_id = None
+        print(f"CloudEvent data type: {type(cloud_event.data)}")
+        print(f"CloudEvent content type: {getattr(cloud_event, 'content_type', 'not set')}")
         
         if isinstance(cloud_event.data, bytes):
+            # Firestore events come as protobuf-encoded bytes
             try:
-                # Simple approach: Look for "evt_" pattern in the bytes (all event IDs start with this)
-                # The protobuf contains the document path: ...telemetry_events/evt_XXXXX...
-                evt_pos = cloud_event.data.find(b'evt_')
-                if evt_pos != -1:
-                    # Extract the event ID (typically 10-20 characters: evt_ + 10 hex chars)
-                    # Extract up to 25 bytes to cover "evt_" + max 20 char ID
-                    id_bytes = cloud_event.data[evt_pos:evt_pos+25]
-                    # Find end of string (look for null byte, non-printable, or end)
-                    for i, byte in enumerate(id_bytes):
-                        if byte == 0 or (byte < 32 and byte != 9 and byte != 10 and byte != 13):  # null, tab, newline, carriage return are OK
-                            id_bytes = id_bytes[:i]
-                            break
-                    # Also ensure we only take alphanumeric/underscore/hyphen
-                    clean_bytes = bytearray()
-                    for byte in id_bytes:
-                        if (32 <= byte <= 126) and (chr(byte).isalnum() or chr(byte) in ['_', '-']):
-                            clean_bytes.append(byte)
-                        else:
-                            break
-                    if clean_bytes:
-                        doc_id = clean_bytes.decode('utf-8', errors='ignore')
-                        print(f"Extracted document ID from bytes: {doc_id}")
+                # Decode protobuf to DocumentEventData
+                document_event = DocumentEventData()
+                document_event.ParseFromString(cloud_event.data)
                 
-                if not doc_id:
-                    raise ValueError("Could not find event ID pattern (evt_) in protobuf bytes")
+                # Convert protobuf to dict format for processing
+                event_data = {
+                    "value": {
+                        "name": document_event.value.name if document_event.value else "",
+                        "fields": {}
+                    }
+                }
+                
+                # Extract fields from protobuf document
+                if document_event.value and document_event.value.fields:
+                    for key, value in document_event.value.fields.items():
+                        # Convert protobuf Value to dict format
+                        field_dict = {}
+                        if value.HasField('string_value'):
+                            field_dict['stringValue'] = value.string_value
+                        elif value.HasField('integer_value'):
+                            field_dict['integerValue'] = str(value.integer_value)
+                        elif value.HasField('double_value'):
+                            field_dict['doubleValue'] = value.double_value
+                        elif value.HasField('boolean_value'):
+                            field_dict['booleanValue'] = value.boolean_value
+                        elif value.HasField('array_value'):
+                            array_values = []
+                            for av in value.array_value.values:
+                                if av.HasField('string_value'):
+                                    array_values.append({'stringValue': av.string_value})
+                            field_dict['arrayValue'] = {'values': array_values}
+                        elif value.HasField('timestamp_value'):
+                            field_dict['timestampValue'] = value.timestamp_value.ToJsonString()
+                        elif value.HasField('null_value'):
+                            field_dict['nullValue'] = None
+                        
+                        event_data["value"]["fields"][key] = field_dict
+                
+                print(f"Successfully decoded protobuf data")
                 
             except Exception as e:
-                print(f"Error extracting document ID: {str(e)}")
-                print(f"First 200 bytes (hex): {cloud_event.data[:200].hex()}")
-                print(f"First 200 bytes (decoded): {cloud_event.data[:200].decode('utf-8', errors='ignore')}")
-                return {"status": "error", "error": f"Failed to extract document ID: {str(e)}"}
-            
-            # Fetch the actual document from Firestore to get all fields
-            # This is more reliable than parsing all protobuf fields manually
+                print(f"Protobuf decode failed: {str(e)}")
+                # Fallback: try JSON decoding (for testing or different formats)
+                try:
+                    decoded_str = cloud_event.data.decode('utf-8')
+                    event_data = json.loads(decoded_str)
+                    print(f"Fallback: decoded as UTF-8 JSON")
+                except:
+                    print(f"All decode strategies failed. First 100 bytes (hex): {cloud_event.data[:100].hex()}")
+                    raise ValueError(f"Could not decode bytes data: {str(e)}")
+                    
+        elif isinstance(cloud_event.data, str):
+            # Handle string - might be JSON
             try:
-                db = firestore.Client()
-                doc_ref = db.collection("telemetry_events").document(doc_id)
-                doc_snapshot = doc_ref.get()
-                
-                if not doc_snapshot.exists:
-                    print(f"Document {doc_id} not found in Firestore")
-                    return {"status": "error", "error": "Document not found"}
-                
-                # Convert Firestore document to dict
-                doc_data = doc_snapshot.to_dict()
-                print(f"Successfully fetched document {doc_id} from Firestore")
-                
-            except Exception as e:
-                print(f"Error fetching document from Firestore: {str(e)}")
-                return {"status": "error", "error": f"Failed to fetch document: {str(e)}"}
-            
+                event_data = json.loads(cloud_event.data)
+                print(f"Successfully parsed string as JSON")
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse string: {str(e)}")
+                raise ValueError(f"Could not parse string data: {str(e)}")
         elif isinstance(cloud_event.data, dict):
-            # Fallback: if data is already a dict (shouldn't happen for Firestore triggers)
+            # Already a dict - use directly
             event_data = cloud_event.data
-            doc_path = event_data.get("value", {}).get("name", "")
-            if "telemetry_events" not in doc_path:
-                print(f"Skipping event from different collection: {doc_path}")
-                return {"status": "skipped"}
-            
-            # Extract document ID and fetch from Firestore
-            doc_id = doc_path.split("/")[-1] if "/" in doc_path else ""
-            db = firestore.Client()
-            doc_ref = db.collection("telemetry_events").document(doc_id)
-            doc_snapshot = doc_ref.get()
-            
-            if not doc_snapshot.exists:
-                print(f"Document {doc_id} not found")
-                return {"status": "error", "error": "Document not found"}
-            
-            doc_data = doc_snapshot.to_dict()
+            print(f"Using dict data directly")
         else:
+            # Unknown type
             print(f"Unexpected data type: {type(cloud_event.data)}")
-            return {"status": "error", "error": f"Unsupported data type: {type(cloud_event.data)}"}
+            raise ValueError(f"Unsupported data type: {type(cloud_event.data)}")
+        
+        # 2. Extract document path and check collection
+        if not isinstance(event_data, dict):
+            print(f"Error: event_data is not a dict, it's {type(event_data)}")
+            return {"status": "error", "error": f"event_data is not a dict: {type(event_data)}"}
+        
+        doc_path = event_data.get("value", {}).get("name", "")
+        if "telemetry_events" not in doc_path:
+            print(f"Skipping event from different collection: {doc_path}")
+            return
+        
+        # 3. Extract document data
+        value = event_data.get("value", {})
+        if not value:
+            print("No document data in event")
+            return
+        
+        # Extract fields from Firestore document
+        fields = value.get("fields", {})
+        if not fields:
+            print("Empty document fields")
+            return
+        
+        # Convert Firestore fields to dict
+        doc_data = {}
+        for key, field_value in fields.items():
+            # Handle different Firestore value types
+            if "stringValue" in field_value:
+                doc_data[key] = field_value["stringValue"]
+            elif "integerValue" in field_value:
+                doc_data[key] = int(field_value["integerValue"])
+            elif "doubleValue" in field_value:
+                doc_data[key] = float(field_value["doubleValue"])
+            elif "booleanValue" in field_value:
+                doc_data[key] = field_value["booleanValue"]
+            elif "arrayValue" in field_value:
+                # Handle array (like dtc_codes)
+                array_values = field_value["arrayValue"].get("values", [])
+                doc_data[key] = [v.get("stringValue", "") for v in array_values if "stringValue" in v]
+            elif "timestampValue" in field_value:
+                doc_data[key] = field_value["timestampValue"]
+            elif "nullValue" in field_value:
+                doc_data[key] = None
         
         if not doc_data:
             print("Empty document data after conversion")
@@ -207,3 +243,4 @@ def prepare_bigquery_row(doc_data: dict) -> dict:
             bq_row[bq_key] = value
     
     return bq_row
+
