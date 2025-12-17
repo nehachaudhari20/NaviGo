@@ -147,38 +147,37 @@ export default function PriorityVehicleQueue() {
 
 
   return (
-    <Card className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-xl overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-orange-500/5"></div>
-      <CardHeader className="relative z-10 bg-gradient-to-r from-slate-900/40 to-slate-800/30 backdrop-blur-md border-b border-slate-700/30">
+    <Card className="bg-white border border-gray-200 shadow-sm">
+      <CardHeader className="pb-3">
         <div className="flex flex-row items-center justify-between pb-3">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-              <AlertTriangle size={20} className="text-red-400" />
+            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <AlertTriangle size={20} className="text-red-600" />
               Priority Vehicle Queue
             </CardTitle>
-            <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs flex items-center gap-1">
+            <Badge className="bg-red-100 text-red-700 border-red-300 text-xs flex items-center gap-1">
               <Brain size={10} />
               AI Detected
             </Badge>
           </div>
-          <Button variant="ghost" size="sm" className="text-xs h-7 text-slate-300 hover:text-slate-100 hover:bg-slate-800/50">
+          <Button variant="ghost" size="sm" className="text-xs h-7 text-gray-600 hover:text-gray-900 hover:bg-gray-50">
             View All
             <ChevronRight size={14} className="ml-1" />
           </Button>
         </div>
-        <p className="text-sm text-slate-400 mt-2 font-medium">
+        <p className="text-sm text-gray-600 mt-2 font-medium">
           Vehicles requiring immediate attention based on AI predictions
         </p>
       </CardHeader>
-      <CardContent className="relative z-10">
+      <CardContent>
         {initialLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="animate-spin text-red-400" size={24} />
-            <span className="ml-2 text-sm text-slate-300">Loading priority vehicles...</span>
+            <Loader2 className="animate-spin text-red-600" size={24} />
+            <span className="ml-2 text-sm text-gray-600">Loading priority vehicles...</span>
           </div>
         ) : priorityVehicles.length === 0 ? (
-          <div className="text-center py-8 text-slate-400">
-            <AlertTriangle size={48} className="mx-auto mb-2 text-slate-600" />
+          <div className="text-center py-8 text-gray-500">
+            <AlertTriangle size={48} className="mx-auto mb-2 text-gray-300" />
             <p className="text-sm">No priority vehicles at this time</p>
           </div>
         ) : (
@@ -188,47 +187,47 @@ export default function PriorityVehicleQueue() {
               key={vehicle.id}
               className={`p-3 border rounded-lg transition-all ${
                 vehicle.aiPredicted
-                  ? "border-red-500/30 bg-gradient-to-r from-red-500/10 via-slate-800/50 to-slate-800/50 hover:border-red-500/50 hover:from-red-500/15"
-                  : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600/50 hover:bg-slate-800/40"
+                  ? "border-red-200 bg-gradient-to-r from-red-50/30 to-white hover:border-red-300"
+                  : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
               }`}
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h4 className="text-sm font-semibold text-slate-100 truncate">{vehicle.vehicle}</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 truncate">{vehicle.vehicle}</h4>
                     <Badge variant="outline" className={`text-xs h-5 ${
-                      vehicle.priority === 'critical' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                      vehicle.priority === 'high' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
-                      vehicle.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
-                      'bg-slate-700/50 text-slate-300 border-slate-600/50'
+                      vehicle.priority === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
+                      vehicle.priority === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                      vehicle.priority === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                      'bg-gray-50 text-gray-700 border-gray-200'
                     }`}>
                       {vehicle.priority.toUpperCase()}
                     </Badge>
                     {vehicle.aiPredicted && (
-                      <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs h-5 flex items-center gap-1">
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-300 text-xs h-5 flex items-center gap-1">
                         <Brain size={10} />
                         {vehicle.aiConfidence}%
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 font-mono mb-1">{vehicle.regNumber}</p>
-                  <p className="text-xs text-slate-300">{vehicle.issue}</p>
+                  <p className="text-xs text-gray-500 font-mono mb-1">{vehicle.regNumber}</p>
+                  <p className="text-xs text-gray-700">{vehicle.issue}</p>
                   {vehicle.aiPredicted && (
                     <div className="mt-1.5 flex items-center gap-1.5">
-                      <TrendingUp size={12} className="text-red-400" />
-                      <span className="text-xs text-red-400 font-medium">AI Risk: {vehicle.riskLevel}</span>
+                      <TrendingUp size={12} className="text-red-600" />
+                      <span className="text-xs text-red-600 font-medium">AI Risk: {vehicle.riskLevel}</span>
                     </div>
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/50">
-                <div className="flex items-center gap-1 text-xs text-slate-400">
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-1 text-xs text-gray-600">
                   <Clock size={12} />
                   <span>{vehicle.estimatedTime}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400">Urgency:</span>
-                  <span className="text-xs font-semibold text-slate-200">{vehicle.urgency}%</span>
+                  <span className="text-xs text-gray-600">Urgency:</span>
+                  <span className="text-xs font-semibold text-gray-900">{vehicle.urgency}%</span>
                 </div>
               </div>
             </div>
@@ -236,11 +235,11 @@ export default function PriorityVehicleQueue() {
         </div>
         )}
         {priorityVehicles.length > 0 && (
-        <div className="mt-4 p-2.5 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-lg border border-red-500/20">
+        <div className="mt-4 p-2.5 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg border border-red-100">
           <div className="flex items-center gap-2">
-            <Brain size={14} className="text-red-400" />
-            <p className="text-xs text-slate-300">
-                <span className="font-medium text-slate-200">AI Alert:</span> {priorityVehicles.length} vehicle{priorityVehicles.length !== 1 ? 's' : ''} flagged by predictive maintenance - schedule immediate inspection
+            <Brain size={14} className="text-red-600" />
+            <p className="text-xs text-gray-700">
+                <span className="font-medium">AI Alert:</span> {priorityVehicles.length} vehicle{priorityVehicles.length !== 1 ? 's' : ''} flagged by predictive maintenance - schedule immediate inspection
             </p>
           </div>
         </div>
