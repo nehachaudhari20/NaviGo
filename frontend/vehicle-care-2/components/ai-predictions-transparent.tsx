@@ -85,11 +85,23 @@ export default function AIPredictionsTransparent() {
   const { user } = useAuth()
   const vehicleId = user?.vehicleId || "MH-07-AB-1234"
   const [predictions, setPredictions] = useState<AIPrediction[]>(MOCK_PREDICTIONS)
+  const [initialLoading, setInitialLoading] = useState(true)
   
   // Use real-time subscription to diagnosis cases and anomaly cases
   const { data: diagnosisCases, loading: diagnosisLoading } = useDiagnosisCases(undefined, vehicleId, true)
   const { data: anomalyCases, loading: anomalyLoading } = useAnomalyCases(vehicleId, true)
-  const loading = diagnosisLoading || anomalyLoading
+  const dataLoading = diagnosisLoading || anomalyLoading
+
+  // Quick initial loading - show mock data after 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoading(false)
+      // Show mock data immediately
+      setPredictions(MOCK_PREDICTIONS)
+    }, 300)
+    
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     // Combine diagnosis cases and anomaly cases
@@ -230,12 +242,12 @@ export default function AIPredictionsTransparent() {
             </Badge>
           </div>
         </div>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-sm text-slate-400 mt-2 font-medium">
           AI-powered predictions with full transparency • Every decision explained
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {loading ? (
+        {initialLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="animate-spin text-cyan-400" size={32} />
             <span className="ml-3 text-slate-300">Loading predictions...</span>
