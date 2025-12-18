@@ -20,6 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
+    // #region agent log
+    const logData = {location:'auth-context.tsx:22',message:'AuthProvider useEffect started',data:{hasWindow:typeof window!=='undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+    console.log('[DEBUG]', logData);
+    fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData)}).catch(()=>{});
+    // #endregion
     // Initialize Firebase Analytics
     if (typeof window !== "undefined") {
       initAnalytics()
@@ -27,13 +32,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Check for stored auth on mount
     if (typeof window !== "undefined") {
+      // #region agent log
+      const logData2 = {location:'auth-context.tsx:30',message:'Checking localStorage for auth',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+      console.log('[DEBUG]', logData2);
+      fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData2)}).catch(()=>{});
+      // #endregion
       const storedAuth = localStorage.getItem("navigo_auth")
       const storedUser = localStorage.getItem("navigo_user")
+      // #region agent log
+      const logData3 = {location:'auth-context.tsx:33',message:'localStorage values',data:{storedAuth,hasStoredUser:!!storedUser},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+      console.log('[DEBUG]', logData3);
+      fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData3)}).catch(()=>{});
+      // #endregion
       if (storedAuth === "true" && storedUser) {
         try {
           const userData = JSON.parse(storedUser)
           setIsAuthenticated(true)
           setUser(userData)
+          // #region agent log
+          const logData4 = {location:'auth-context.tsx:36',message:'Auth restored from localStorage',data:{persona:userData.persona,email:userData.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+          console.log('[DEBUG]', logData4);
+          fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData4)}).catch(()=>{});
+          // #endregion
           
           // Track session restoration
           uebaService.trackUserBehavior({
@@ -53,6 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       setIsInitialized(true)
+      // #region agent log
+      const logData5 = {location:'auth-context.tsx:55',message:'Auth initialization complete',data:{isAuthenticated:storedAuth==='true',isInitialized:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+      console.log('[DEBUG]', logData5);
+      fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData5)}).catch(()=>{});
+      // #endregion
     } else {
       // Server-side: mark as initialized immediately
       setIsInitialized(true)

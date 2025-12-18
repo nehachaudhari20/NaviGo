@@ -11,17 +11,34 @@ type Persona = "customer" | "service" | "manufacturer"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, isAuthenticated, user } = useAuth()
+  const { login, isAuthenticated, user, isInitialized } = useAuth()
   const [selectedPersona, setSelectedPersona] = useState<Persona>("customer")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
 
+  // #region agent log
+  if (typeof window !== "undefined") {
+    const logData = {location:'login/page.tsx:13',message:'LoginPage render',data:{isAuthenticated,isInitialized,hasUser:!!user,pathname:window.location.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+    console.log('[DEBUG]', logData);
+    fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData)}).catch(()=>{});
+  }
+  // #endregion
+
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:22',message:'LoginPage useEffect',data:{isAuthenticated,hasUser:!!user,persona:user?.persona},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    // Wait for auth to initialize before checking
+    if (!isInitialized) return;
+    
     // If already authenticated, redirect to appropriate dashboard based on persona
     if (isAuthenticated && user) {
       if (typeof window !== "undefined") {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:26',message:'Redirecting authenticated user',data:{persona:user.persona,currentPath:window.location.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         if (user.persona === "customer" && window.location.pathname !== "/") {
           window.location.href = "/"
         } else if (user.persona === "service" && window.location.pathname !== "/service-center") {
@@ -31,7 +48,7 @@ export default function LoginPage() {
         }
       }
     }
-  }, [isAuthenticated, user, router])
+  }, [isAuthenticated, user, isInitialized, router])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,8 +72,33 @@ export default function LoginPage() {
     }
   }
 
+  // #region agent log
+  if (typeof window !== "undefined") {
+    fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:58',message:'LoginPage render check',data:{isAuthenticated,isInitialized,willReturnNull:isAuthenticated},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  }
+  // #endregion
+
+  // Show loading while auth initializes
+  if (!isInitialized) {
+    return (
+      <div className="flex h-screen bg-white items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (isAuthenticated) {
-    return null
+    return (
+      <div className="flex h-screen bg-white items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   const personas = [
