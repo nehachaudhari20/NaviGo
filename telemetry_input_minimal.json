@@ -1,0 +1,9 @@
+{
+  "vehicle_id": "MH-07-AB-1234",
+  "timestamp_utc": "2024-12-16T10:30:45.123Z",
+  "gps_lat": 19.0760,
+  "gps_lon": 72.8777,
+  "speed_kmph": 60.5,
+  "odometer_km": 45230.5
+}
+

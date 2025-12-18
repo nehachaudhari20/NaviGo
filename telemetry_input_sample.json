@@ -1,0 +1,17 @@
+{
+  "event_id": "evt_001",
+  "vehicle_id": "MH-07-AB-1234",
+  "timestamp_utc": "2024-12-16T10:30:45.123Z",
+  "gps_lat": 19.0760,
+  "gps_lon": 72.8777,
+  "speed_kmph": 60.5,
+  "odometer_km": 45230.5,
+  "engine_rpm": 2500,
+  "engine_coolant_temp_c": 85.0,
+  "engine_oil_temp_c": 95.0,
+  "fuel_level_pct": 75.5,
+  "battery_soc_pct": 85.0,
+  "battery_soh_pct": 92.0,
+  "dtc_codes": []
+}
+

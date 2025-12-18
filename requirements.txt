@@ -1,0 +1,51 @@
+# NaviGo - General Requirements File
+# This file contains all dependencies needed for the NaviGo project
+# Install with: pip install -r requirements.txt
+
+# ============================================================================
+# Core Framework & Runtime
+# ============================================================================
+functions-framework==3.5.0
+flask==3.0.0
+
+# ============================================================================
+# Google Cloud Platform Services
+# ============================================================================
+# Firestore - NoSQL database
+google-cloud-firestore==2.13.1
+
+# Pub/Sub - Message queuing
+google-cloud-pubsub==2.18.4
+
+# BigQuery - Data warehousing
+google-cloud-bigquery==3.13.0
+
+# Vertex AI / Gemini - AI/ML services
+google-cloud-aiplatform==1.38.1
+
+# ============================================================================
+# Data Validation & Processing
+# ============================================================================
+pydantic==2.5.0
+
+# ============================================================================
+# Communication Services
+# ============================================================================
+# Twilio - Voice calls and SMS
+twilio>=8.0.0
+
+# ============================================================================
+# Utilities
+# ============================================================================
+# Timezone handling (for scheduling agent)
+pytz==2024.1
+
+# ============================================================================
+# Development & Testing (Optional)
+# ============================================================================
+# Uncomment these for local development:
+# pytest>=7.4.0
+# pytest-mock>=3.11.0
+# black>=23.0.0
+# flake8>=6.0.0
+

@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // DEVELOPMENT MODE: Allow all reads, prevent all writes from frontend
+    // TODO: Replace with proper Firebase Auth-based rules for production
+    
+    // Telemetry Events
+    match /telemetry_events/{eventId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Vehicles
+    match /vehicles/{vehicleId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Anomaly Cases
+    match /anomaly_cases/{caseId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Diagnosis Cases
+    match /diagnosis_cases/{caseId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // RCA Cases
+    match /rca_cases/{caseId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Scheduling Cases
+    match /scheduling_cases/{caseId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Engagement Cases
+    match /engagement_cases/{caseId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Communication Cases
+    match /communication_cases/{caseId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Bookings
+    match /bookings/{bookingId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Human Reviews
+    match /human_reviews/{reviewId} {
+      allow read: if true; // Allow reads for development
+      allow update: if true; // Allow updates for approve/reject (development)
+      allow create: if false; // Only backend can create
+      allow delete: if false; // Prevent deletes
+    }
+    
+    // Feedback Cases
+    match /feedback_cases/{caseId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Manufacturing Cases
+    match /manufacturing_cases/{caseId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Pipeline States
+    match /pipeline_states/{stateId} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Only backend can write
+    }
+    
+    // Default: Allow reads, prevent writes
+    match /{document=**} {
+      allow read: if true; // Allow reads for development
+      allow write: if false; // Prevent all writes from frontend
+    }
+  }
+}
+
