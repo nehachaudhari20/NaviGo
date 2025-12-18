@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import Sidebar from "@/components/sidebar"
@@ -17,35 +17,36 @@ import TelemetryUpload from "@/components/telemetry-upload"
 export default function DashboardPage() {
   const { isAuthenticated, user, isInitialized } = useAuth()
   const router = useRouter()
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
     // Wait for auth to initialize
     if (!isInitialized) return
 
+    // Prevent multiple redirects
+    if (isRedirecting) return
+
     // Redirect if not authenticated
     if (!isAuthenticated) {
-      const timer = setTimeout(() => {
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login"
-        }
-      }, 500)
-      return () => clearTimeout(timer)
+      if (window.location.pathname !== "/login") {
+        setIsRedirecting(true)
+        window.location.replace("/login")
+      }
+      return
     }
     
     // Redirect based on persona if not customer
     if (user?.persona === "service" && window.location.pathname !== "/service-center") {
-      const timer = setTimeout(() => {
-        window.location.href = "/service-center"
-      }, 500)
-      return () => clearTimeout(timer)
+      setIsRedirecting(true)
+      window.location.replace("/service-center")
+      return
     }
     if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
-      const timer = setTimeout(() => {
-        window.location.href = "/manufacturer"
-      }, 500)
-      return () => clearTimeout(timer)
+      setIsRedirecting(true)
+      window.location.replace("/manufacturer")
+      return
     }
-  }, [isAuthenticated, user, isInitialized, router])
+  }, [isAuthenticated, user, isInitialized, router, isRedirecting])
 
   // Show loading while auth is initializing
   if (!isInitialized) {
@@ -60,7 +61,7 @@ export default function DashboardPage() {
   }
 
   // Show loading while redirecting
-  if (!isAuthenticated || user?.persona !== "customer") {
+  if (isRedirecting || !isAuthenticated || user?.persona !== "customer") {
     return (
       <div className="flex h-screen bg-black items-center justify-center">
         <div className="text-center">

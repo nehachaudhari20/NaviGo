@@ -22,36 +22,37 @@ function DashboardContent() {
   const { isAuthenticated, user, isInitialized } = useAuth()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
     // Wait for auth to initialize
     if (!isInitialized) return
 
+    // Prevent multiple redirects
+    if (isRedirecting) return
+
     // Redirect if not authenticated
     if (!isAuthenticated) {
-      // Use setTimeout to prevent redirect loop
-      const timer = setTimeout(() => {
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login"
-        }
-      }, 500)
-      return () => clearTimeout(timer)
+      if (window.location.pathname !== "/login") {
+        setIsRedirecting(true)
+        window.location.replace("/login")
+      }
+      return
     }
     
     // Redirect if not service center persona
     if (user?.persona !== "service") {
-      const timer = setTimeout(() => {
-        if (user?.persona === "customer" && window.location.pathname !== "/") {
-          window.location.href = "/"
-        } else if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
-          window.location.href = "/manufacturer"
-        } else if (!user?.persona && window.location.pathname !== "/login") {
-          window.location.href = "/login"
-        }
-      }, 500)
-      return () => clearTimeout(timer)
+      setIsRedirecting(true)
+      if (user?.persona === "customer" && window.location.pathname !== "/") {
+        window.location.replace("/")
+      } else if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
+        window.location.replace("/manufacturer")
+      } else if (!user?.persona && window.location.pathname !== "/login") {
+        window.location.replace("/login")
+      }
+      return
     }
-  }, [isAuthenticated, user, isInitialized, router])
+  }, [isAuthenticated, user, isInitialized, router, isRedirecting])
 
   // Show loading while auth is initializing
   if (!isInitialized) {
@@ -66,7 +67,7 @@ function DashboardContent() {
   }
 
   // Show loading while redirecting
-  if (!isAuthenticated || user?.persona !== "service") {
+  if (isRedirecting || !isAuthenticated || user?.persona !== "service") {
     return (
       <div className="flex h-screen bg-black items-center justify-center">
         <div className="text-center">
