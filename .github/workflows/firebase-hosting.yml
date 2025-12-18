@@ -48,8 +48,18 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
 
-      - name: Copy firebase.json to root
-        run: cp deployment/firebase.json ./firebase.json
+      - name: Verify build output
+        working-directory: ./frontend/vehicle-care-2
+        run: |
+          if [ ! -d "out" ]; then
+            echo "❌ Error: Build output directory 'out' not found"
+            exit 1
+          fi
+          if [ ! -f "out/index.html" ]; then
+            echo "❌ Error: index.html not found in build output"
+            exit 1
+          fi
+          echo "✅ Build output verified"
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -58,4 +68,5 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           channelId: live
           projectId: navigo-27206
-
+          target: navigo-27206
+          workingDirectory: ./frontend/vehicle-care-2
