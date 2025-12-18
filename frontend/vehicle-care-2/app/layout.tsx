@@ -38,20 +38,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // #region agent log
-  if (typeof window !== "undefined") {
-    fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:36',message:'RootLayout render',data:{pathname:window.location.pathname,nodeEnv:process.env.NODE_ENV},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  }
-  // #endregion
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <head>
-        {/* #region agent log */}
-        {typeof window !== "undefined" && (
-          <script dangerouslySetInnerHTML={{__html:`fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:head',message:'Script loading check',data:{scripts:Array.from(document.querySelectorAll('script[src]')).map(s=>s.src)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});`}} />
-        )}
-        {/* #endregion */}
-      </head>
       <body className={`font-sans antialiased dark`} suppressHydrationWarning>
         <AuthProvider>
         {children}
@@ -62,11 +50,6 @@ export default function RootLayout({
         {process.env.NODE_ENV === 'development' && (
           <Script src="/ueba-test-helpers.js" strategy="afterInteractive" />
         )}
-        {/* #region agent log */}
-        {typeof window !== "undefined" && (
-          <script dangerouslySetInnerHTML={{__html:`window.addEventListener('error',function(e){if(e.filename&&e.filename.includes('.js')){fetch('http://127.0.0.1:7242/ingest/a1345270-2a46-4dba-9801-7d775e34c887',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:error-handler',message:'JS load error',data:{filename:e.filename,message:e.message,lineno:e.lineno},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});}});`}} />
-        )}
-        {/* #endregion */}
       </body>
     </html>
   )
