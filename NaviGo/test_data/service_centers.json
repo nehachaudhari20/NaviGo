@@ -1,0 +1,83 @@
+[
+  {
+    "service_center_id": "center_001",
+    "name": "NaviGo Service Center - Mumbai Central",
+    "address": "123 MG Road, Mumbai Central, Mumbai 400008",
+    "location": {
+      "lat": 19.0760,
+      "lon": 72.8777
+    },
+    "timezone": "Asia/Kolkata",
+    "capacity": 15,
+    "operating_hours": {
+      "monday": {"start": "09:00", "end": "18:00"},
+      "tuesday": {"start": "09:00", "end": "18:00"},
+      "wednesday": {"start": "09:00", "end": "18:00"},
+      "thursday": {"start": "09:00", "end": "18:00"},
+      "friday": {"start": "09:00", "end": "18:00"},
+      "saturday": {"start": "09:00", "end": "15:00"},
+      "sunday": {"closed": true}
+    },
+    "spare_parts_availability": {
+      "engine_coolant_system": "available",
+      "coolant_pump": "available",
+      "coolant_fluid": "available",
+      "engine_oil_system": "available",
+      "battery": "available",
+      "transmission": "available",
+      "brake_system": "available"
+    },
+    "inventory": {
+      "coolant_pump": "available",
+      "coolant_fluid": "available",
+      "engine_oil": "available",
+      "battery": "available",
+      "brake_pads": "available"
+    },
+    "technicians": [
+      "tech_001",
+      "tech_002",
+      "tech_003"
+    ],
+    "available_slots": []
+  },
+  {
+    "service_center_id": "center_002",
+    "name": "NaviGo Service Center - Andheri",
+    "address": "456 SV Road, Andheri West, Mumbai 400053",
+    "location": {
+      "lat": 19.1136,
+      "lon": 72.8297
+    },
+    "timezone": "Asia/Kolkata",
+    "capacity": 12,
+    "operating_hours": {
+      "monday": {"start": "09:00", "end": "18:00"},
+      "tuesday": {"start": "09:00", "end": "18:00"},
+      "wednesday": {"start": "09:00", "end": "18:00"},
+      "thursday": {"start": "09:00", "end": "18:00"},
+      "friday": {"start": "09:00", "end": "18:00"},
+      "saturday": {"start": "09:00", "end": "15:00"},
+      "sunday": {"closed": true}
+    },
+    "spare_parts_availability": {
+      "engine_coolant_system": "available",
+      "coolant_pump": "in_transit",
+      "coolant_fluid": "available",
+      "engine_oil_system": "available",
+      "battery": "available"
+    },
+    "inventory": {
+      "coolant_pump": "in_transit",
+      "coolant_fluid": "available",
+      "engine_oil": "available",
+      "battery": "available"
+    },
+    "technicians": [
+      "tech_004",
+      "tech_005"
+    ],
+    "available_slots": []
+  }
+]
+
