@@ -11,7 +11,7 @@ type Persona = "customer" | "service" | "manufacturer"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, isAuthenticated, user, isInitialized } = useAuth()
+  const { login, isAuthenticated, user } = useAuth()
   const [selectedPersona, setSelectedPersona] = useState<Persona>("customer")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -19,12 +19,9 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
 
   useEffect(() => {
-    // Wait for auth to initialize
-    if (!isInitialized) return
-
     // If already authenticated, redirect to appropriate dashboard based on persona
     if (isAuthenticated && user) {
-      const timer = setTimeout(() => {
+      if (typeof window !== "undefined") {
         if (user.persona === "customer" && window.location.pathname !== "/") {
           window.location.href = "/"
         } else if (user.persona === "service" && window.location.pathname !== "/service-center") {
@@ -32,10 +29,9 @@ export default function LoginPage() {
         } else if (user.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
           window.location.href = "/manufacturer"
         }
-      }, 500)
-      return () => clearTimeout(timer)
+      }
     }
-  }, [isAuthenticated, user, isInitialized, router])
+  }, [isAuthenticated, user, router])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,28 +55,8 @@ export default function LoginPage() {
     }
   }
 
-  // Show loading while auth is initializing
-  if (!isInitialized) {
-    return (
-      <div className="flex h-screen bg-white items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // If authenticated, show loading while redirecting
   if (isAuthenticated) {
-    return (
-      <div className="flex h-screen bg-white items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Redirecting...</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
   const personas = [

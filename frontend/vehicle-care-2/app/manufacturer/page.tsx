@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import ManufacturerSidebar from "@/components/manufacturer/sidebar"
@@ -12,62 +12,34 @@ import NotificationsPanel from "@/components/manufacturer/notifications-panel"
 import ComplianceDashboard from "@/components/manufacturer/compliance-dashboard"
 
 export default function ManufacturerPage() {
-  const { isAuthenticated, user, isInitialized } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const router = useRouter()
-  const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
-    // Wait for auth to initialize
-    if (!isInitialized) return
-
-    // Prevent multiple redirects
-    if (isRedirecting) return
-
-    // Redirect if not authenticated
     if (!isAuthenticated) {
-      if (window.location.pathname !== "/login") {
-        setIsRedirecting(true)
-        window.location.replace("/login")
+      // Use window.location for static export compatibility
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.href = "/login"
       }
       return
     }
     
     // Redirect if not manufacturer persona
     if (user?.persona !== "manufacturer") {
-      setIsRedirecting(true)
-      if (user?.persona === "customer" && window.location.pathname !== "/") {
-        window.location.replace("/")
-      } else if (user?.persona === "service" && window.location.pathname !== "/service-center") {
-        window.location.replace("/service-center")
-      } else if (!user?.persona && window.location.pathname !== "/login") {
-        window.location.replace("/login")
+      if (typeof window !== "undefined") {
+        if (user?.persona === "customer" && window.location.pathname !== "/") {
+          window.location.href = "/"
+        } else if (user?.persona === "service" && window.location.pathname !== "/service-center") {
+          window.location.href = "/service-center"
+        } else if (window.location.pathname !== "/login") {
+          window.location.href = "/login"
+        }
       }
-      return
     }
-  }, [isAuthenticated, user, isInitialized, router, isRedirecting])
+  }, [isAuthenticated, user, router])
 
-  // Show loading while auth is initializing
-  if (!isInitialized) {
-    return (
-      <div className="flex h-screen bg-black items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Show loading while redirecting
-  if (isRedirecting || !isAuthenticated || user?.persona !== "manufacturer") {
-    return (
-      <div className="flex h-screen bg-black items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Redirecting...</p>
-        </div>
-      </div>
-    )
+  if (!isAuthenticated || user?.persona !== "manufacturer") {
+    return null
   }
 
   return (

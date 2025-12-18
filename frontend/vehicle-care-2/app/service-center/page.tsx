@@ -19,63 +19,35 @@ import DeliveryOverview from "@/components/service-center/delivery-overview"
 import CostDetails from "@/components/service-center/cost-details"
 
 function DashboardContent() {
-  const { isAuthenticated, user, isInitialized } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
-    // Wait for auth to initialize
-    if (!isInitialized) return
-
-    // Prevent multiple redirects
-    if (isRedirecting) return
-
-    // Redirect if not authenticated
     if (!isAuthenticated) {
-      if (window.location.pathname !== "/login") {
-        setIsRedirecting(true)
-        window.location.replace("/login")
+      // Use window.location for static export compatibility
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.href = "/login"
       }
       return
     }
     
     // Redirect if not service center persona
     if (user?.persona !== "service") {
-      setIsRedirecting(true)
-      if (user?.persona === "customer" && window.location.pathname !== "/") {
-        window.location.replace("/")
-      } else if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
-        window.location.replace("/manufacturer")
-      } else if (!user?.persona && window.location.pathname !== "/login") {
-        window.location.replace("/login")
+      if (typeof window !== "undefined") {
+        if (user?.persona === "customer" && window.location.pathname !== "/") {
+          window.location.href = "/"
+        } else if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
+          window.location.href = "/manufacturer"
+        } else if (window.location.pathname !== "/login") {
+          window.location.href = "/login"
+        }
       }
-      return
     }
-  }, [isAuthenticated, user, isInitialized, router, isRedirecting])
+  }, [isAuthenticated, user, router])
 
-  // Show loading while auth is initializing
-  if (!isInitialized) {
-    return (
-      <div className="flex h-screen bg-black items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Show loading while redirecting
-  if (isRedirecting || !isAuthenticated || user?.persona !== "service") {
-    return (
-      <div className="flex h-screen bg-black items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Redirecting...</p>
-        </div>
-      </div>
-    )
+  if (!isAuthenticated || user?.persona !== "service") {
+    return null
   }
 
   return (
