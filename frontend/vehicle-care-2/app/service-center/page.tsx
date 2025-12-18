@@ -22,32 +22,46 @@ function DashboardContent() {
   const { isAuthenticated, user } = useAuth()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      // Use window.location for static export compatibility
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.href = "/login"
-      }
-      return
-    }
-    
-    // Redirect if not service center persona
-    if (user?.persona !== "service") {
-      if (typeof window !== "undefined") {
-        if (user?.persona === "customer" && window.location.pathname !== "/") {
-          window.location.href = "/"
-        } else if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
-          window.location.href = "/manufacturer"
-        } else if (window.location.pathname !== "/login") {
+    // Small delay to allow auth to initialize from localStorage
+    const timer = setTimeout(() => {
+      if (!isAuthenticated) {
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          setRedirecting(true)
           window.location.href = "/login"
         }
+        return
       }
-    }
+      
+      // Redirect if not service center persona
+      if (user?.persona !== "service") {
+        if (typeof window !== "undefined") {
+          setRedirecting(true)
+          if (user?.persona === "customer" && window.location.pathname !== "/") {
+            window.location.href = "/"
+          } else if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
+            window.location.href = "/manufacturer"
+          } else if (window.location.pathname !== "/login") {
+            window.location.href = "/login"
+          }
+        }
+      }
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [isAuthenticated, user, router])
 
-  if (!isAuthenticated || user?.persona !== "service") {
-    return null
+  if (redirecting || !isAuthenticated || user?.persona !== "service") {
+    return (
+      <div className="flex h-screen bg-black items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import Sidebar from "@/components/sidebar"
@@ -17,31 +17,46 @@ import TelemetryUpload from "@/components/telemetry-upload"
 export default function DashboardPage() {
   const { isAuthenticated, user } = useAuth()
   const router = useRouter()
+  const [redirecting, setRedirecting] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      // Use window.location for static export compatibility
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.href = "/login"
+    // Small delay to allow auth to initialize from localStorage
+    const timer = setTimeout(() => {
+      if (!isAuthenticated) {
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          setRedirecting(true)
+          window.location.href = "/login"
+        }
+        return
       }
-      return
-    }
+      
+      // Redirect based on persona if not customer
+      if (typeof window !== "undefined") {
+        if (user?.persona === "service" && window.location.pathname !== "/service-center") {
+          setRedirecting(true)
+          window.location.href = "/service-center"
+          return
+        }
+        if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
+          setRedirecting(true)
+          window.location.href = "/manufacturer"
+          return
+        }
+      }
+    }, 100)
     
-    // Redirect based on persona if not customer
-    if (typeof window !== "undefined") {
-      if (user?.persona === "service" && window.location.pathname !== "/service-center") {
-        window.location.href = "/service-center"
-        return
-      }
-      if (user?.persona === "manufacturer" && window.location.pathname !== "/manufacturer") {
-        window.location.href = "/manufacturer"
-        return
-      }
-    }
+    return () => clearTimeout(timer)
   }, [isAuthenticated, user, router])
 
-  if (!isAuthenticated || user?.persona !== "customer") {
-    return null
+  if (redirecting || !isAuthenticated || user?.persona !== "customer") {
+    return (
+      <div className="flex h-screen bg-black items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    )
   }
   return (
     <div className="flex h-screen bg-black text-slate-100">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import ManufacturerSidebar from "@/components/manufacturer/sidebar"
@@ -14,32 +14,46 @@ import ComplianceDashboard from "@/components/manufacturer/compliance-dashboard"
 export default function ManufacturerPage() {
   const { isAuthenticated, user } = useAuth()
   const router = useRouter()
+  const [redirecting, setRedirecting] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      // Use window.location for static export compatibility
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.href = "/login"
-      }
-      return
-    }
-    
-    // Redirect if not manufacturer persona
-    if (user?.persona !== "manufacturer") {
-      if (typeof window !== "undefined") {
-        if (user?.persona === "customer" && window.location.pathname !== "/") {
-          window.location.href = "/"
-        } else if (user?.persona === "service" && window.location.pathname !== "/service-center") {
-          window.location.href = "/service-center"
-        } else if (window.location.pathname !== "/login") {
+    // Small delay to allow auth to initialize from localStorage
+    const timer = setTimeout(() => {
+      if (!isAuthenticated) {
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          setRedirecting(true)
           window.location.href = "/login"
         }
+        return
       }
-    }
+      
+      // Redirect if not manufacturer persona
+      if (user?.persona !== "manufacturer") {
+        if (typeof window !== "undefined") {
+          setRedirecting(true)
+          if (user?.persona === "customer" && window.location.pathname !== "/") {
+            window.location.href = "/"
+          } else if (user?.persona === "service" && window.location.pathname !== "/service-center") {
+            window.location.href = "/service-center"
+          } else if (window.location.pathname !== "/login") {
+            window.location.href = "/login"
+          }
+        }
+      }
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [isAuthenticated, user, router])
 
-  if (!isAuthenticated || user?.persona !== "manufacturer") {
-    return null
+  if (redirecting || !isAuthenticated || user?.persona !== "manufacturer") {
+    return (
+      <div className="flex h-screen bg-black items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
